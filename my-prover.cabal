@@ -1,0 +1,35 @@
+cabal-version:      3.0
+name:               my-prover
+version:            0.1.0.0
+license:            BSD-2-Clause
+license-file:       LICENSE
+author:             r.t.groot@student.utwente.nl
+maintainer:         r.t.groot@student.utwente.nl
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+
+common warnings
+    ghc-options: -Wall
+
+library
+    import:           warnings
+    exposed-modules:  CorePrintPlugin, CorePrinter
+    build-depends:    base,
+                      ghc
+    hs-source-dirs:   src
+    default-language: Haskell2010
+    other-extensions:
+      OverloadedStrings,
+      LambdaCase
+
+-- Executable section for a test program
+library test
+  exposed-modules:  TestModule
+  hs-source-dirs:    test
+  build-depends:   
+    base,  
+    my-prover  
+  ghc-options: -fplugin=CorePrintPlugin
+  ghc-options: -fexpose-all-unfoldings
+  default-language:  Haskell2010
+  ghc-options:       -Wall
