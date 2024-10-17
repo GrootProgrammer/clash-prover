@@ -8,13 +8,13 @@ printCode :: CoreBind -> CoreM ()
 printCode (NonRec id expr) = do
   liftIO $ putStrLn "NonRec:"
   liftIO $ putStrLn $ printFuncName id ++ " :: " ++ printFuncType id
---  liftIO $ putStrLn  (printVarName id ++ " = " ++ printExpr 0 expr)
-  putMsg $ ppr (NonRec id expr)
+  liftIO $ putStrLn  (printFuncName id ++ " = \n" ++ printExpr 1 expr)
+  putMsg $ ppr expr
   liftIO $ putStrLn  ""
 printCode (Rec l) = do
   liftIO $ putStrLn "Recursive binder: "
-  putMsg $ ppr (Rec l)
---  liftIO $ putStrLn $ intercalate "\n" $ map (\(id, expr) -> indent 1 ++ printVarDef id ++ "\n" ++ printExpr 2 expr ++ "\n") l
+  liftIO $ putStrLn $ intercalate "\n" $ map (\(id, expr) -> indent 0 ++ printFuncName id ++ " :: " ++ printFuncType id ++ "\n" ++ printFuncName id ++ " = \n" ++ printExpr 1 expr ) l
+  mapM_ (\(id, expr) -> putMsg $ ppr expr ) l
 
 --codeString :: CoreBind -> String
 --codeString (NonRec id expr) = do
@@ -23,7 +23,8 @@ printCode (Rec l) = do
 --  "Recursive binder: \n" ++ intercalate "\n" (map (\(id, expr) -> indent 1 ++ printVarDef id ++ "\n" ++ printExpr 2 expr ++ "\n") l)
 --
 printFuncName :: Var -> String
-printFuncName v = nameStableString $ getName v
+--slightly uglier but unique if combined with the getUnique
+printFuncName v = nameStableString (getName v) ++ "(" ++ show (getUnique $ getName v) ++ ")"
 printFuncType :: Var -> String
 printFuncType v = printExprKind 0 (varType v)
 --
@@ -94,7 +95,7 @@ printFuncDef level v = indent level ++ show (nameStableString $ getName v) ++ " 
 --printLiteral (LitLabel _ _ _)    = "Unsupported subexpression"
 --
 ---- Pretty-printing Core expressions
---printExpr :: Integer -> CoreExpr -> String
+printExpr :: Integer -> CoreExpr -> String
 --printExpr level (Var v)                   = indent level ++ printFuncName v
 --printExpr level (Lit l)                   = indent level ++ printLiteral l
 --printExpr level (App e1 e2)               = indent level ++ printExpr 0 e1 ++ " (" ++ printExpr 0 e2 ++ ")"
@@ -105,7 +106,7 @@ printFuncDef level v = indent level ++ show (nameStableString $ getName v) ++ " 
 --printExpr level (Tick _ expr)             = printExpr level expr -- Tick is often used for annotations, so we skip it
 --printExpr level (Type _)                  = indent level ++ "Type"
 --printExpr level (Coercion _)              = indent level ++ "Coercion"
-----printExpr level _                         = indent level ++ "Unsupported expression"
+printExpr level _                         = indent level ++ "Unsupported expression"
 --
 ---- Pretty-printing alternatives in a Case expression
 --printAlts :: Integer -> [CoreAlt] -> String
