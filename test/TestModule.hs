@@ -21,6 +21,10 @@ addUS (US a) (US b) = mkUnsigned (a + b)
 addUSO :: forall n m. (KnownNat n, KnownNat m, m ~ n + 1) => Unsigned n -> Unsigned n -> Unsigned m
 addUSO (US a) (US b) = mkUnsigned (a + b)
 
+zeroN = 0
+zero :: Unsigned 1
+zero = US zeroN
+
 ge :: forall n. (KnownNat n) => Unsigned n -> Unsigned n -> Bool
 ge (US a) (US b) = a >= b
 
