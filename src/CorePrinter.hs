@@ -61,11 +61,11 @@ printExprKind level (TyConApp tyCon []) = indent level ++ show (nameStableString
 printExprKind level (TyConApp tyCon kot) = indent level ++ "(" ++ show (nameStableString $ getName tyCon) ++ " @" ++ intercalate " @" (map (printExprKind 0) kot) ++ ")"
 printExprKind level (ForAllTy (Bndr id _) t) = indent level ++ "(" ++ "forall " ++ printFuncDef 0 id ++ "). " ++ printExprKind 0 t
 printExprKind level (FunTy flag _ arg res) = indent level ++ printExprKind 0 arg ++ " " ++ printFlag flag ++ " " ++ printExprKind 0 res
-printExprKind level (LitTy (NumTyLit i)) = indent level ++ show i
-printExprKind level (LitTy (StrTyLit i)) = indent level ++ show i
-printExprKind level (LitTy (CharTyLit i)) = indent level ++ show i
-printExprKind level (CastTy _ _) = "CastTy"
-printExprKind level (CoercionTy _) = "CoercionTy"
+printExprKind level (LitTy (NumTyLit i)) = indent level ++ "(" ++ show i ++ " :: Integer)"
+printExprKind level (LitTy (StrTyLit i)) = indent level ++ "(" ++ show i ++ " :: [Char])"
+printExprKind level (LitTy (CharTyLit i)) = indent level ++ "(" ++ show i ++ " :: Char)"
+printExprKind _ (CastTy _ _) = "CastTy"
+printExprKind _ (CoercionTy _) = "CoercionTy"
 
 printFuncDef :: Integer -> Var -> String
 printFuncDef level v = indent level ++ show (nameStableString $ getName v) ++ " :: " ++ printExprKind 0 (varType v)
