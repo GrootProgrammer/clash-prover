@@ -19,8 +19,8 @@ convertExpression :: CoreExpr -> ProveExpression
 convertExpression (Var info)                            = Variable (PN info) (PT (idType info))
 convertExpression (Lit lit)                             = Literal (convertLiteral lit) (PT (convertLiteraltoType lit))
 convertExpression (App expr arg)                        = DirectOperation (convertExpression expr) (convertExpression arg) (PT (exprToType (App expr arg)))
-convertExpression (Lam varToBind expression)            = error "called convertExpression with Lambda"
-convertExpression (Let _ _)                             = error "called convertExpression with Let"
+convertExpression (Lam varToBind expression)            = Lambda (PN varToBind) (convertExpression expression) (PT (exprToType (Lam varToBind expression)))
+convertExpression (Let (NonRec id expr) expression)     = convertExpression (App (Lam id expression) expr)
 convertExpression (GHC.Plugins.Case expr _ _ alts)      = error "called convertExpression with Case"
 convertExpression (Cast _ _)                            = error "called convertExpression with Cast"
 convertExpression (Tick _ expr)                         = convertExpression expr

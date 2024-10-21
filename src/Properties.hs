@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-module Annotations (
+module Properties (
   Equiv(..),
   EquivCond(..)
 ) where

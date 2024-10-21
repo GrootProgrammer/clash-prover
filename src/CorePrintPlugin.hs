@@ -1,7 +1,5 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 module CorePrintPlugin (plugin) where
 import GHC.Plugins
-import CorePrinter
 import CoreTranslate.Translate
 import Data.List (intercalate)
 

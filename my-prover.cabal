@@ -14,8 +14,10 @@ common warnings
 
 library
     import:           warnings
-    exposed-modules:  
+    exposed-modules:
       CorePrintPlugin, 
+      Properties
+    other-modules:  
       CorePrinter,
       CoreTranslate.Language,
       CoreTranslate.Translate
