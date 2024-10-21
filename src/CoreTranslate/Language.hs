@@ -1,4 +1,4 @@
-{-# LANGUAGE InstanceSigs #-}
+
 {-# LANGUAGE TypeSynonymInstances #-}
 module CoreTranslate.Language where
 import GHC.Core.TyCo.Rep
