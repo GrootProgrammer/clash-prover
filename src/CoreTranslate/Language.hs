@@ -9,30 +9,33 @@ import Data.List (intercalate)
 import qualified GHC.Real
 import GHC.Plugins hiding (Case)
 
-data LiteralTypes = LChar Char | LNumber Integer | LString String | LFloat Rational | LDouble Rational | Typed Kind
+data LiteralTypes = LChar Char | LNumber Integer | LString String | LFloat Rational | LDouble Rational | Typed ProveType
     deriving (Show)
 
-data ProveExpression    = Literal LiteralTypes Kind
-                        | Symbolic ProveExpression Kind
-                        | Variable Id Kind
-                        | TypeVar Kind
-                        | Lambda Id ProveExpression Kind
-                        | Case [CaseInstance] Kind
-                        | DirectOperation ProveExpression ProveExpression Kind
+data ProveExpression    = Literal LiteralTypes ProveType
+                        | Symbolic ProveExpression ProveType
+                        | Variable ProveName ProveType
+                        | TypeVar ProveType
+                        | Lambda ProveName ProveExpression ProveType
+                        | Case [CaseInstance] ProveType
+                        | DirectOperation ProveExpression ProveExpression ProveType
     deriving (Show)
 
 data CaseInstance   = CI ProveExpression ProveExpression
     deriving (Show)
 
-data VariableDef = Def { defName :: Id, defExpr :: ProveExpression}
+data VariableDef = Def { defName :: ProveName, defExpr :: ProveExpression}
     deriving (Show)
 
 type ProveLanguage  = [VariableDef]
 
-instance Show Id where
-    show v = nameStableString (getName v) ++ "(" ++ show (getUnique $ getName v) ++ ")"
-instance Show Kind where
-    show v = "TypeInfo"
+newtype ProveName = PN Id
+newtype ProveType = PT Kind
+
+instance Show ProveName where
+    show (PN v) = nameStableString (getName v) ++ "(" ++ show (getUnique $ getName v) ++ ")"
+instance Show ProveType where
+    show _ = "TypeInfo"
 
 --getUndefinedVariables :: ProveLanguage -> [(String, Kind)]
 --getUndefinedVariables [] = []
