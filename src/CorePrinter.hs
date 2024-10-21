@@ -22,28 +22,22 @@ printCode (Rec l) = do
 --codeString (Rec l) = do
 --  "Recursive binder: \n" ++ intercalate "\n" (map (\(id, expr) -> indent 1 ++ printVarDef id ++ "\n" ++ printExpr 2 expr ++ "\n") l)
 --
-printFuncName :: Var -> String
+printFuncName :: CoreBndr -> String
 --slightly uglier but unique if combined with the getUnique
 printFuncName v = nameStableString (getName v) ++ "(" ++ show (getUnique $ getName v) ++ ")"
-printFuncType :: Var -> String
+printFuncType :: CoreBndr -> String
 printFuncType v = printExprKind 0 (varType v)
---
---printVarName :: Var -> String
---printVarName v = nameStableString $ getName v
---
+
+printVarName :: Var -> String
+printVarName v = nameStableString (getName v) ++ "(" ++ show (getUnique $ getName v) ++ ")"
+
 --printVarType :: Var -> String
 --printVarType v = printExprKind 0 (varType v)
 --
 --printVarDef :: Var -> String
 --printVarDef v = printVarName v ++ " :: " ++ printVarType v
 --
---printBinders :: CoreBind -> CoreM ()
---printBinders (NonRec id expr) = do
---  liftIO $ putStrLn  (printFuncDef 0 id)
---printBinders (Rec l) = do
---  liftIO $ putStrLn "Recursive binder: "
---  liftIO $ putStrLn $ intercalate "\n" $ map (\(id, expr) -> printFuncDef 1 id) l
---
+
 indent :: Integer -> String
 indent i
   | i <= 0 = ""
@@ -68,57 +62,57 @@ printExprKind level (LitTy (CharTyLit i)) = indent level ++ "(" ++ show i ++ " :
 printExprKind _ (CastTy _ _) = "CastTy"
 printExprKind _ (CoercionTy _) = "CoercionTy"
 
-printFuncDef :: Integer -> Var -> String
+printFuncDef :: Integer -> CoreBndr -> String
 printFuncDef level v = indent level ++ show (nameStableString $ getName v) ++ " :: " ++ printExprKind 0 (varType v)
---
---printNumType :: LitNumType -> String
---printNumType LitNumBigNat = "BigNat"
---printNumType LitNumInt    = "Int"
---printNumType LitNumInt8   = "Int8"
---printNumType LitNumInt16  = "Int16"
---printNumType LitNumInt32  = "Int32"
---printNumType LitNumInt64  = "Int64"
---printNumType LitNumWord   = "Word"
---printNumType LitNumWord8  = "Word8"
---printNumType LitNumWord16 = "Word16"
---printNumType LitNumWord32 = "Word32"
---printNumType LitNumWord64 = "Word64"
---
---printLiteral :: Literal -> String
---printLiteral (LitChar c)         = show c ++ " :: " ++ printExprKind 0 (mkTyConApp charTyCon [])
---printLiteral (LitNumber t v)     = show v ++ " :: " ++ printExprKind 0 (mkTyConApp integerTyCon [])
---printLiteral (LitString s)       = show s ++ " :: " ++ printExprKind 0 (mkTyConApp listTyCon [mkTyConApp charTyCon []])
---printLiteral LitNullAddr         = "null :: Ptr"
---printLiteral (LitRubbish _ _)    = "bullshit :: Bullshit"
---printLiteral (LitFloat r)        = show r ++ " :: " ++ printExprKind 0 (mkTyConApp floatTyCon [])
---printLiteral (LitDouble d)       = show d  ++ " :: " ++ printExprKind 0 (mkTyConApp doubleTyCon [])
---printLiteral (LitLabel _ _ _)    = "Unsupported subexpression"
---
+
+printNumType :: LitNumType -> TyCon
+printNumType LitNumBigNat = naturalTyCon
+printNumType LitNumInt    = intTyCon
+printNumType LitNumInt8   = tyConAppTyCon int8RepDataConTy
+printNumType LitNumInt16  = tyConAppTyCon int16RepDataConTy
+printNumType LitNumInt32  = tyConAppTyCon int32RepDataConTy
+printNumType LitNumInt64  = tyConAppTyCon int64RepDataConTy
+printNumType LitNumWord   = wordTyCon
+printNumType LitNumWord8  = word8TyCon
+printNumType LitNumWord16 = tyConAppTyCon word16RepDataConTy
+printNumType LitNumWord32 = tyConAppTyCon word32RepDataConTy
+printNumType LitNumWord64 = tyConAppTyCon word64RepDataConTy
+
+printLiteral :: Literal -> String
+printLiteral (LitChar c)         = show c ++ " :: " ++ printExprKind 0 (mkTyConApp charTyCon [])
+printLiteral (LitNumber t v)     = show v ++ " :: " ++ printExprKind 0 (mkTyConApp (printNumType t) [])
+printLiteral (LitString s)       = show s ++ " :: " ++ printExprKind 0 (mkTyConApp listTyCon [mkTyConApp charTyCon []])
+printLiteral LitNullAddr         = "null :: Ptr"
+printLiteral (LitRubbish _ _)    = "bullshit :: Bullshit"
+printLiteral (LitFloat r)        = show r ++ " :: " ++ printExprKind 0 (mkTyConApp floatTyCon [])
+printLiteral (LitDouble d)       = show d  ++ " :: " ++ printExprKind 0 (mkTyConApp doubleTyCon [])
+printLiteral (LitLabel _ _ _)    = "Unsupported subexpression"
+
 ---- Pretty-printing Core expressions
 printExpr :: Integer -> CoreExpr -> String
---printExpr level (Var v)                   = indent level ++ printFuncName v
---printExpr level (Lit l)                   = indent level ++ printLiteral l
---printExpr level (App e1 e2)               = indent level ++ printExpr 0 e1 ++ " (" ++ printExpr 0 e2 ++ ")"
---printExpr level (Lam b expr)              = indent level ++ "(\\" ++ printVarName b ++ " -> " ++ printExpr 0 expr ++ ")"
---printExpr level (Let bind expr)           = indent level ++ "let " ++ printBinders' bind ++ " in " ++ printExpr 0 expr
---printExpr level (Case expr b _ alts)      = indent level ++ "case " ++ printExpr 0 expr ++ " of " ++ printVarName b ++ " -> " ++ printAlts level alts
---printExpr level (Cast expr _)             = printExpr level expr ++ " -- Cast"
---printExpr level (Tick _ expr)             = printExpr level expr -- Tick is often used for annotations, so we skip it
---printExpr level (Type _)                  = indent level ++ "Type"
---printExpr level (Coercion _)              = indent level ++ "Coercion"
-printExpr level _                         = indent level ++ "Unsupported expression"
---
----- Pretty-printing alternatives in a Case expression
---printAlts :: Integer -> [CoreAlt] -> String
---printAlts level alts = intercalate "\n" $ map (printAlt level) alts
---
---printAlt :: Integer -> CoreAlt -> String
---printAlt level (Alt (DataAlt d) bndrs expr) =
---  indent level ++ show (nameStableString $ getName d) ++ " " ++ unwords (map printVarName bndrs) ++ " -> " ++ printExpr (level + 1) expr
---printAlt level (Alt (LitAlt l) bndrs expr) =
---  indent level ++ printLiteral l ++ " " ++ unwords (map printVarName bndrs) ++ " -> " ++ printExpr (level + 1) expr
---printAlt level (Alt DEFAULT bndrs expr) =
---  indent level ++ "default" ++ " " ++ unwords (map printVarName bndrs) ++ " -> " ++ printExpr (level + 1) expr
+printExpr level (Var v)                   = indent level ++ printFuncName v
+printExpr level (Lit l)                   = indent level ++ printLiteral l
+printExpr level (App e1 e2)               = indent level ++ printExpr 0 e1 ++ " " ++ printExpr 0 e2
+printExpr level (Lam b expr)              = indent level ++ "(\\" ++ printVarName b ++ " -> " ++ "\n" ++ printExpr (level + 1) expr ++ ")"
+printExpr level (Let _ _)                 = indent level ++ "Unsupported expression: Let"  --indent level ++ "let " ++ printBinders' bind ++ " in " ++ printExpr 0 expr
+printExpr level (Case expr _ _ alts)      = indent level ++ "case " ++ printExpr 0 expr ++ " of " ++ "\n" ++ printAlts (level+1) alts
+printExpr level (Cast _ _)                = indent level ++ "Unsupported expression: Cast" -- printExpr level expr ++ " -- Cast"
+printExpr level (Tick _ expr)             = printExpr level expr
+printExpr level (Type t)                  = indent level ++ "@" ++ printExprKind 0 t
+printExpr level (Coercion _)              = indent level ++ "Unsupported expression: Coercion" -- indent level ++ "Coercion"
+--printExpr level _                         = indent level ++ "Unsupported expression"
+
+-- Pretty-printing alternatives in a Case expression
+printAlts :: Integer -> [CoreAlt] -> String
+printAlts level alts = intercalate "\n" $ map (printAlt level) alts
+
+printAlt :: Integer -> CoreAlt -> String
+printAlt level (Alt (DataAlt d) bndrs expr) =
+  indent level ++ show (nameStableString $ getName d) ++ " " ++ unwords (map printVarName bndrs) ++ " -> \n" ++ printExpr (level+1) expr
+printAlt level (Alt (LitAlt l) bndrs expr) =
+  indent level ++ printLiteral l ++ " " ++ unwords (map printVarName bndrs) ++ " -> \n" ++ printExpr (level+1) expr
+printAlt level (Alt DEFAULT bndrs expr) =
+  indent level ++ "default" ++ " " ++ unwords (map printVarName bndrs) ++ " -> \n" ++ printExpr (level+1) expr
 --
 ---- Print binders in Let expressions
 --printBinders' :: CoreBind -> String

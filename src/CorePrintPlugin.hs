@@ -2,6 +2,8 @@
 module CorePrintPlugin (plugin) where
 import GHC.Plugins
 import CorePrinter
+import CoreTranslate.Translate
+import Data.List (intercalate)
 
 plugin :: Plugin
 plugin = defaultPlugin {
@@ -14,6 +16,5 @@ install _ todo = do
 
 pass :: ModGuts -> CoreM ModGuts
 pass guts = do
-      mapM_ printCode (mg_binds guts)
+      liftIO $ putStrLn $ intercalate "\n" $ map show $ convertBinds $ mg_binds guts
       return guts
-
