@@ -13,13 +13,10 @@ convertBind (NonRec id expr) = [convertIdExpression id expr]
 convertBind (Rec l) =  concatMap (\(id, expr) -> convertBind (NonRec id expr)) l
 
 convertIdExpression :: CoreBndr -> CoreExpr -> VariableDef
-convertIdExpression name expr = Def (idToUniqueString name) (convertExpression expr)
-
-idToUniqueString :: Id -> String
-idToUniqueString v = nameStableString (getName v) ++ "(" ++ show (getUnique $ getName v) ++ ")"
+convertIdExpression name expr = Def name (convertExpression expr)
 
 convertExpression :: CoreExpr -> ProveExpression
-convertExpression (Var info)                            = Variable (idToUniqueString info) (idType info)
+convertExpression (Var info)                            = Variable info (idType info)
 convertExpression (Lit lit)                             = Literal (convertLiteral lit) (convertLiteraltoType lit)
 convertExpression (App expr arg)                        = DirectOperation (convertExpression expr) (convertExpression arg) (exprToType (App expr arg))
 convertExpression (Lam varToBind expression)            = error "called convertExpression with Lambda"
