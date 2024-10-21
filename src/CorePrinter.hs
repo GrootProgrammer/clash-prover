@@ -16,12 +16,6 @@ printCode (Rec l) = do
   liftIO $ putStrLn $ intercalate "\n" $ map (\(id, expr) -> indent 0 ++ printFuncName id ++ " :: " ++ printFuncType id ++ "\n" ++ printFuncName id ++ " = \n" ++ printExpr 1 expr ) l
   mapM_ (\(id, expr) -> putMsg $ ppr expr ) l
 
---codeString :: CoreBind -> String
---codeString (NonRec id expr) = do
---  printFuncName id ++ "\n" ++ (printVarName id ++ " = " ++ printExpr 0 expr)
---codeString (Rec l) = do
---  "Recursive binder: \n" ++ intercalate "\n" (map (\(id, expr) -> indent 1 ++ printVarDef id ++ "\n" ++ printExpr 2 expr ++ "\n") l)
---
 printFuncName :: CoreBndr -> String
 --slightly uglier but unique if combined with the getUnique
 printFuncName v = nameStableString (getName v) ++ "(" ++ show (getUnique $ getName v) ++ ")"
@@ -30,13 +24,6 @@ printFuncType v = printExprKind 0 (varType v)
 
 printVarName :: Var -> String
 printVarName v = nameStableString (getName v) ++ "(" ++ show (getUnique $ getName v) ++ ")"
-
---printVarType :: Var -> String
---printVarType v = printExprKind 0 (varType v)
---
---printVarDef :: Var -> String
---printVarDef v = printVarName v ++ " :: " ++ printVarType v
---
 
 indent :: Integer -> String
 indent i
@@ -113,8 +100,3 @@ printAlt level (Alt (LitAlt l) bndrs expr) =
   indent level ++ printLiteral l ++ " " ++ unwords (map printVarName bndrs) ++ " -> \n" ++ printExpr (level+1) expr
 printAlt level (Alt DEFAULT bndrs expr) =
   indent level ++ "default" ++ " " ++ unwords (map printVarName bndrs) ++ " -> \n" ++ printExpr (level+1) expr
---
----- Print binders in Let expressions
---printBinders' :: CoreBind -> String
---printBinders' (NonRec id expr) = printVarName id ++ " = " ++ printExpr 0 expr
---printBinders' (Rec l) = intercalate "; " $ map (\(id, expr) -> printVarName id ++ " = " ++ printExpr 0 expr) l
