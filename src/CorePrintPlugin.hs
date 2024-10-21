@@ -18,5 +18,5 @@ pass guts = do
   liftIO $ putStrLn $ intercalate "\n" $ map show equivs
   return guts
       where 
-        equivs = findEquivInLanguage language
-        language = convertBinds $ mg_binds guts
+        equivs = findEquivInLanguage lang
+        lang = convertBinds $ mg_binds guts
