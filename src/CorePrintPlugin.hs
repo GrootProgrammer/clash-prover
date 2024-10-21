@@ -2,6 +2,7 @@ module CorePrintPlugin (plugin) where
 import GHC.Plugins
 import CoreTranslate.Translate
 import Data.List (intercalate)
+import Properties (findEquivInLanguage)
 
 plugin :: Plugin
 plugin = defaultPlugin {
@@ -14,5 +15,8 @@ install _ todo = do
 
 pass :: ModGuts -> CoreM ModGuts
 pass guts = do
-      liftIO $ putStrLn $ intercalate "\n" $ map show $ convertBinds $ mg_binds guts
-      return guts
+  liftIO $ putStrLn $ intercalate "\n" $ map show equivs
+  return guts
+      where 
+        equivs = findEquivInLanguage language
+        language = convertBinds $ mg_binds guts
