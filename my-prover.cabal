@@ -21,6 +21,7 @@ library
       CorePrinter,
       CoreTranslate.Language,
       CoreTranslate.Translate,
+      CoreTranslate.Inlining,
       Prover.LazyExecute
     build-depends:    base,
                       ghc
