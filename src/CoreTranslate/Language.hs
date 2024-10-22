@@ -8,7 +8,6 @@ data LiteralTypes = LChar Char | LNumber Integer | LString String | LFloat Ratio
     deriving (Show)
 
 data ProveExpression    = Literal           { lt :: LiteralTypes, pt :: ProveType}
-                        | Symbolic          { name :: ProveName, cond :: [ProveExpression], pt :: ProveType }
                         | Variable          { name :: ProveName, pt :: ProveType }
                         | TypeVar           { pt :: ProveType }
                         | Lambda            { name :: ProveName, expr :: ProveExpression, pt :: ProveType }
@@ -25,6 +24,7 @@ data VariableDef = Def { defName :: ProveName, defExpr :: ProveExpression}
 type ProveLanguage  = [VariableDef]
 
 newtype ProveName = PN Id
+    deriving (Eq)
 newtype ProveType = PT Kind
 
 instance Show ProveName where
