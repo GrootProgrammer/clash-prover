@@ -32,7 +32,7 @@ newtype ProveType = PT Kind
 instance Show ProveName where
     show (PN v) = nameStableString (getName v) ++ "(" ++ show (getUnique $ getName v) ++ ")"
 instance Show ProveType where
-    show _ = "TypeInfo"
+    show (PT t) = showPprUnsafe t
 instance Eq ProveType where
   (==) :: ProveType -> ProveType -> Bool
   (==) (PT kind1) (PT kind2) = tcEqKind kind1 kind2
