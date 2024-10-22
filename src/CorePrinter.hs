@@ -73,7 +73,7 @@ printLiteral LitNullAddr         = "null :: Ptr"
 printLiteral (LitRubbish _ _)    = "bullshit :: Bullshit"
 printLiteral (LitFloat r)        = show r ++ " :: " ++ printExprKind 0 (mkTyConApp floatTyCon [])
 printLiteral (LitDouble d)       = show d  ++ " :: " ++ printExprKind 0 (mkTyConApp doubleTyCon [])
-printLiteral (LitLabel _ _ _)    = "Unsupported subexpression"
+printLiteral _                  = "Unsupported subexpression"
 
 ---- Pretty-printing Core expressions
 printExpr :: Integer -> CoreExpr -> String
