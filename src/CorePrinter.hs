@@ -14,7 +14,7 @@ printCode (NonRec id expr) = do
 printCode (Rec l) = do
   liftIO $ putStrLn "Recursive binder: "
   liftIO $ putStrLn $ intercalate "\n" $ map (\(id, expr) -> indent 0 ++ printFuncName id ++ " :: " ++ printFuncType id ++ "\n" ++ printFuncName id ++ " = \n" ++ printExpr 1 expr ) l
-  mapM_ (\(id, expr) -> putMsg $ ppr expr ) l
+  mapM_ (\(_, expr) -> putMsg $ ppr expr ) l
 
 printFuncName :: CoreBndr -> String
 --slightly uglier but unique if combined with the getUnique
