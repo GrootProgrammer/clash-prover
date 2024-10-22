@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
-module CoreTranslate.Translate where
+module CoreTranslate.Translate(convertBinds) where
 
-import CoreTranslate.Language
+import CoreTranslate.Language hiding (arg, name, expr)
 import GHC.Plugins
 import Prelude hiding (id)
 
@@ -21,22 +21,18 @@ convertExpression (Lit lit)                             = Literal (convertLitera
 convertExpression (App expr arg)                        = DirectOperation (convertExpression expr) (convertExpression arg) (PT (exprToType (App expr arg)))
 convertExpression (Lam varToBind expression)            = Lambda (PN varToBind) (convertExpression expression) (PT (exprToType (Lam varToBind expression)))
 convertExpression (Let (NonRec id expr) expression)     = convertExpression (App (Lam id expression) expr)
-convertExpression (GHC.Plugins.Case expr _ _ alts)      = error "called convertExpression with Case"
+convertExpression (GHC.Plugins.Case {})                 = error "called convertExpression with Case"
 convertExpression (Cast _ _)                            = error "called convertExpression with Cast"
 convertExpression (Tick _ expr)                         = convertExpression expr
 convertExpression (Type t)                              = TypeVar (PT t)
 convertExpression (Coercion _)                          = error "called convertExpression with Coercion"
 
 convertLiteraltoType :: Literal -> Kind
-convertLiteraltoType (LitChar c)         = error ""
-convertLiteraltoType (LitNumber t v)     = error ""
-convertLiteraltoType (LitString s)       = error ""
-convertLiteraltoType (LitFloat r)        = error ""
-convertLiteraltoType (LitDouble d)       = error ""
+convertLiteraltoType _         = error ""
 
 convertLiteral :: Literal -> LiteralTypes
 convertLiteral (LitChar c)         = LChar c
-convertLiteral (LitNumber t v)     = LNumber v
+convertLiteral (LitNumber _ v)     = LNumber v
 convertLiteral (LitString s)       = LString (show s)
 convertLiteral (LitFloat r)        = LFloat r
 convertLiteral (LitDouble d)       = LDouble d
