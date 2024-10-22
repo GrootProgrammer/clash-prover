@@ -7,13 +7,13 @@ import GHC.Plugins hiding (Case)
 data LiteralTypes = LChar Char | LNumber Integer | LString String | LFloat Rational | LDouble Rational | Typed ProveType
     deriving (Show)
 
-data ProveExpression    = Literal { lt :: LiteralTypes, pt :: ProveType}
-                        | Symbolic { expr :: ProveExpression, pt :: ProveType }
-                        | Variable { name :: ProveName, pt :: ProveType }
-                        | TypeVar { pt :: ProveType }
-                        | Lambda { var :: ProveName, expr :: ProveExpression, pt :: ProveType }
-                        | Case { options :: [CaseInstance], pt :: ProveType }
-                        | DirectOperation { f :: ProveExpression, arg :: ProveExpression, pt :: ProveType }
+data ProveExpression    = Literal           { lt :: LiteralTypes, pt :: ProveType}
+                        | Symbolic          { name :: ProveName, cond :: [ProveExpression], pt :: ProveType }
+                        | Variable          { name :: ProveName, pt :: ProveType }
+                        | TypeVar           { pt :: ProveType }
+                        | Lambda            { name :: ProveName, expr :: ProveExpression, pt :: ProveType }
+                        | Case              { options :: [CaseInstance], pt :: ProveType }
+                        | DirectOperation   { f :: ProveExpression, arg :: ProveExpression, pt :: ProveType }
     deriving (Show)
 
 data CaseInstance   = CI ProveExpression ProveExpression
