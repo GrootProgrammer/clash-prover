@@ -1,10 +1,10 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 module CoreTranslate.Translate(convertBinds, convertExpression) where
 
 import Prelude
 import CoreTranslate.Language hiding (arg, name, expr)
 import GHC.Plugins
-import Prelude hiding (id)
 
 convertBinds :: [CoreBind] -> ProveLanguage
 convertBinds = concatMap convertBind
