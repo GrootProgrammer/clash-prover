@@ -2,15 +2,10 @@ module TestModule where
 
 import Prelude
 import Properties
+import GHC.Integer
 
-basicPlusEasy :: Equiv Integer Integer
-basicPlusEasy = Equiv basicPlus easyPlus
+negateIdentity :: Equiv Integer Integer
+negateIdentity = Equiv (negateInteger) negateBySub
 
-easyPlus :: Integer -> Integer
-easyPlus a = 15 + a
-
-basicPlus :: Integer -> Integer
-basicPlus input = 10 + fiveConstant + input
-
-fiveConstant :: Integer
-fiveConstant = 5
+negateBySub :: Integer -> Integer
+negateBySub a = 0 - a 
