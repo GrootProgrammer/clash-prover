@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE InstanceSigs #-}
 module CoreTranslate.Language where
+import Prelude
 import GHC.Core.TyCo.Rep
 import GHC.Plugins hiding (Case)
 import GHC.Core.TyCo.Compare (tcEqKind)

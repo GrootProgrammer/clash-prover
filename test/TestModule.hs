@@ -1,5 +1,6 @@
 module TestModule where
 
+import Prelude
 import Properties
 
 basicPlusEasy :: Equiv Integer Integer

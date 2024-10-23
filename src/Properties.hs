@@ -5,6 +5,7 @@ module Properties (
   findEquivInLanguage
 ) where
 
+import Prelude
 import Data.Data
 import CoreTranslate.Language
 import Data.List (isPrefixOf)

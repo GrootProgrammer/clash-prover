@@ -92,9 +92,7 @@ library
       CorePrinter,
       CoreTranslate.Language,
       CoreTranslate.LanguageUtils,
-      CoreTranslate.Translate,
-      CoreTranslate.Unfolding,
-      Prover.LazyExecute
+      CoreTranslate.Translate
     build-depends:    base,
                       ghc,
                       exceptions

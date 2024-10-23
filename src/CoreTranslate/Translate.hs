@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
-module CoreTranslate.Translate(convertBinds) where
+module CoreTranslate.Translate(convertBinds, convertExpression) where
 
+import Prelude
 import CoreTranslate.Language hiding (arg, name, expr)
 import GHC.Plugins
 import Prelude hiding (id)

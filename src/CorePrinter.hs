@@ -1,4 +1,6 @@
 module CorePrinter (printCode) where
+
+import Prelude
 import GHC.Plugins
 import Data.List (intercalate)
 import GHC.Core.TyCo.Rep
@@ -69,8 +71,6 @@ printLiteral :: Literal -> String
 printLiteral (LitChar c)         = show c ++ " :: " ++ printExprKind 0 (mkTyConApp charTyCon [])
 printLiteral (LitNumber t v)     = show v ++ " :: " ++ printExprKind 0 (mkTyConApp (printNumType t) [])
 printLiteral (LitString s)       = show s ++ " :: " ++ printExprKind 0 (mkTyConApp listTyCon [mkTyConApp charTyCon []])
-printLiteral LitNullAddr         = "null :: Ptr"
-printLiteral (LitRubbish _ _)    = "bullshit :: Bullshit"
 printLiteral (LitFloat r)        = show r ++ " :: " ++ printExprKind 0 (mkTyConApp floatTyCon [])
 printLiteral (LitDouble d)       = show d  ++ " :: " ++ printExprKind 0 (mkTyConApp doubleTyCon [])
 printLiteral _                  = "Unsupported subexpression"
