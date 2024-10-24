@@ -10,12 +10,12 @@ import GHC.Core.TyCo.Compare (tcEqKind)
 data LiteralTypes = LChar Char | LNumber Integer | LString String | LFloat Rational | LDouble Rational | Typed ProveType
     deriving (Show, Eq)
 
-data ProveExpression    = Literal           { lt :: LiteralTypes, pt :: ProveType}
-                        | Variable          { name :: ProveName, pt :: ProveType }
+data ProveExpression    = Literal           { lt :: LiteralTypes}
+                        | Variable          { name :: ProveName}
                         | TypeVar           { pt :: ProveType }
-                        | Lambda            { name :: ProveName, expr :: ProveExpression, pt :: ProveType }
-                        | Case              { options :: [CaseInstance], pt :: ProveType }
-                        | DirectOperation   { f :: ProveExpression, arg :: ProveExpression, pt :: ProveType }
+                        | Lambda            { name :: ProveName, expr :: ProveExpression }
+                        | Case              { binding :: ProveExpression, options :: [CaseInstance] }
+                        | DirectOperation   { f :: ProveExpression, arg :: ProveExpression }
     deriving (Show, Eq)
 
 data CaseInstance   = CI ProveExpression ProveExpression

@@ -17,10 +17,10 @@ convertIdExpression :: CoreBndr -> CoreExpr -> VariableDef
 convertIdExpression name expr = Def (PN name) (convertExpression expr)
 
 convertExpression :: CoreExpr -> ProveExpression
-convertExpression (Var info)                            = Variable (PN info) (PT (idType info))
-convertExpression (Lit lit)                             = Literal (convertLiteral lit) (PT (convertLiteraltoType lit))
-convertExpression (App expr arg)                        = DirectOperation (convertExpression expr) (convertExpression arg) (PT (exprToType (App expr arg)))
-convertExpression (Lam varToBind expression)            = Lambda (PN varToBind) (convertExpression expression) (PT (exprToType (Lam varToBind expression)))
+convertExpression (Var info)                            = Variable (PN info)
+convertExpression (Lit lit)                             = Literal (convertLiteral lit)
+convertExpression (App expr arg)                        = DirectOperation (convertExpression expr) (convertExpression arg)
+convertExpression (Lam varToBind expression)            = Lambda (PN varToBind) (convertExpression expression)
 convertExpression (Let (NonRec id expr) expression)     = convertExpression (App (Lam id expression) expr)
 convertExpression (GHC.Plugins.Case {})                 = error "called convertExpression with Case"
 convertExpression (Cast _ _)                            = error "called convertExpression with Cast"

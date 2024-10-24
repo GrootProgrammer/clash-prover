@@ -92,7 +92,8 @@ library
       CorePrinter,
       CoreTranslate.Language,
       CoreTranslate.LanguageUtils,
-      CoreTranslate.Translate
+      CoreTranslate.Translate,
+      Prove.ProveSimpleEquiv
     build-depends:    base,
                       ghc,
                       exceptions

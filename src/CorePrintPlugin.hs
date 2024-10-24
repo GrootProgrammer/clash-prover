@@ -20,9 +20,9 @@ install _ todo = do
 pass :: ModGuts -> CoreM ModGuts
 pass guts = do
   --d <- CoreTranslate.Unfolding.lookup n_1
-  liftIO $ putStrLn $ show $ convertExpression $ unfoldingTemplate $ realIdUnfolding  n_1
+  liftIO $ print (convertExpression $ unfoldingTemplate $ realIdUnfolding  n_1)
   return guts
       where
-        (Variable (PN n_1) _, equiv_1_2) = head equivs
+        (Variable (PN n_1), equiv_1_2) = head equivs
         equivs = findEquivInLanguage lang
         lang = convertBinds $ mg_binds guts
