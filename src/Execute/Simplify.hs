@@ -61,7 +61,10 @@ matchCase match ((CI (DataAlt con2) binds2 caseExpr):xs) = case getConstructorBi
     Nothing -> Nothing
     Just (PN con1, binds1) ->
         (if (con1 == dataConWorkId con2) && (length binds1 == length binds2) then Just $ foldr (\(to, from) e -> replaceVariable e from to) caseExpr $ zip binds1 binds2 else matchCase match xs)
-matchCase val ((CI DEFAULT [] caseExpr):xs) = if isWHNF val then Just caseExpr else Nothing
+matchCase val ((CI DEFAULT [] caseExpr):xs) = 
+    case matchCase val xs of
+        Just m -> Just m
+        Nothing -> if isWHNF val then Just caseExpr else Nothing
 matchCase _ _ = Nothing
 
 -- RULE: if the result is not equal to the last parameter or consumed from stack, reroll the stack else return the last parameter
