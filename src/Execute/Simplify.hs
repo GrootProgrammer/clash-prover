@@ -5,7 +5,6 @@ import CoreTranslate.Language
 import CoreTranslate.LanguageUtils
 import GHC.Core (AltCon(..))
 import GHC (DataCon)
-import GHC.Natural (Natural)
 import Execute.Primitives (primitiveExecute, isPrimitive)
 import GHC.Core.DataCon (dataConWorkId)
 import Debug.Trace (trace)
@@ -28,15 +27,6 @@ iterateUntilLeft funcParam start =
 simplify :: ProveLanguage -> [ProveExpression] -> ProveExpression -> ProveExpression
 simplify lang stack = iterateUntilLeft (simplifyStep lang stack [])
 
-resolveStack :: ProveLanguage -> [ProveName] -> Natural -> [ProveExpression] -> [ProveExpression]
-resolveStack _ _ 0 xs = xs
-resolveStack lang free n (x:xs) = case x_s of
-    Left _ -> x:resolveStack lang free (n-1) xs
-    Right x_simp -> x_simp:xs
-    where
-        x_s = simplifyStep lang [] free x
-resolveStack _ _ _ [] = error "stack not populated"
-
 simplifyStepCases :: ProveLanguage -> [ProveName] -> [CaseInstance] -> Either [CaseInstance] [CaseInstance]
 simplifyStepCases _ _ [] = Left []
 simplifyStepCases lang free ((CI con binds caseExpr):xs) = case case_simplified of
@@ -54,14 +44,14 @@ matchCase :: ProveExpression -> [CaseInstance] -> Maybe ProveExpression
 matchCase _ [] = Nothing
 -- dictionary lookup, mostly used for instances like Num
 matchCase (Literal (Dict con1 binds1)) ((CI (DataAlt con2) binds2 caseExpr):xs)
-    | con1 == con2 = Just $ foldr (\(to, from) e -> replaceVariable e from to) caseExpr $ zip (tail binds1) binds2
+    | con1 == con2 = Just $ foldr (\(to, from) e -> replaceVariable e from to) caseExpr $ zip (drop 1 binds1) binds2
     | otherwise = matchCase (Literal (Dict con1 binds1)) xs
 -- constructor matching
 matchCase match ((CI (DataAlt con2) binds2 caseExpr):xs) = case getConstructorBinding match of
     Nothing -> Nothing
     Just (PN con1, binds1) ->
         (if (con1 == dataConWorkId con2) && (length binds1 == length binds2) then Just $ foldr (\(to, from) e -> replaceVariable e from to) caseExpr $ zip binds1 binds2 else matchCase match xs)
-matchCase val ((CI DEFAULT [] caseExpr):xs) = 
+matchCase val ((CI DEFAULT [] caseExpr):xs) =
     case matchCase val xs of
         Just m -> Just m
         Nothing -> if isWHNF val then Just caseExpr else Nothing
@@ -80,8 +70,8 @@ simplifyStep lang stack free (Variable f)
     where
         executedVar = primitiveExecute stack (Variable f)
         f_def = defExpr $ getVariableDef lang stack f
-simplifyStep lang (x:stack) free (Lambda n e) = 
-    case simple_e of 
+simplifyStep lang (x:stack) free (Lambda n e) =
+    case simple_e of
         Left _ -> trace "Rule: lambda simplification" $ Right $ rerollStack stack $ replaceVariable e n x
         Right s_e -> Right $ rerollStack (x:stack) $ Lambda n s_e
     where
@@ -105,7 +95,7 @@ simplifyStep lang stack free (DirectOperation dof x) =
         Left _ -> case x_Simplify of
             Left _ -> Left $ DirectOperation dof x
             Right x_simp -> Right $ rerollStack stack $ DirectOperation dof x_simp
-        Right f_simp -> Right $ f_simp
+        Right f_simp -> Right f_simp
     where
         x_Simplify = simplifyStep lang [] free x
         f_Simplify = simplifyStep lang (x:stack) free dof
