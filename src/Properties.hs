@@ -28,7 +28,7 @@ isNameCall _ _ = False
 collect :: ProveExpression -> [ProveExpression]
 collect (Literal         _ ) = []
 collect (Variable        _ ) = []
-collect (Lambda          e _) = []
+collect (Lambda          _ _) = []
 collect (Case           _ _ _) = []
 collect (DirectOperation e a) = a : collect e
 
