@@ -33,5 +33,5 @@ pass guts = do
   return guts
       where
         equivs = findEquivInLanguage lang
-        equivsMealy = findEquivMealyInLanguage lang
+--        equivsMealy = findEquivMealyInLanguage lang
         lang = convertBinds $ mg_binds guts
