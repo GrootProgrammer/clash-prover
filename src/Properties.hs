@@ -33,9 +33,11 @@ collect (Case           _ _ _) = []
 collect (DirectOperation e a) = a : collect e
 
 extractEquivInfo :: ProveExpression -> (ProveExpression, ProveExpression, ProveExpression, ProveExpression)
-extractEquivInfo def = (a,b,c,d)
+extractEquivInfo def = case abcd of
+        [a, b, c, d] -> (a, b, c, d)
+        _ -> error "wrong amount of stack"
     where
-        a : b : c : d : _ = collect (def)
+        abcd = collect def
 
 -- as Equiv has 2 (type) parameters and 2 args it becomes Def _ (DO (DO EquivString arg1) arg2) 
 findEquivInDef :: VariableDef -> Maybe VariableDef
