@@ -15,13 +15,5 @@ import           Data.Proxy
 import           GHC.TypeLits
 import qualified Clash.Prelude as CP
 
-checkEasy :: Equiv Word32 Word32
-checkEasy = Equiv (\i -> i + 1) (\i -> i - (maxBound @(Word32)))
-
-check :: EquivMealy Int32 (Int32, Int32) (Int32, Int32, Int32) Int32
-check = EquivMealy check1 (0,0) check2 (0,0,0)
-
-check1 :: (Int32, Int32) -> Int32 -> ((Int32, Int32), Int32)
-check1 (t1, t2) t0 = ((t0, t1), t0+t1+t2) 
-check2 :: (Int32, Int32, Int32) -> Int32 -> ((Int32, Int32, Int32), Int32)
-check2 (t1, t2, acc) t0 = ((t0, t1, acc + t0 - t2), acc + t0 - t2) 
+checkEasy :: Equiv (CP.Unsigned 32, CP.Unsigned 32) Bool
+checkEasy = Equiv (\(a, b)-> a > b) (\(a, b) -> b <= a)
