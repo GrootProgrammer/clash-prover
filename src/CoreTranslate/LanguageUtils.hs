@@ -26,14 +26,14 @@ getVariableDef [] context n = traceShow ("id: " ++ show n) $ traceShowId $ getEx
 data Node = N String [(String, Node)]
 
 writeNode :: String -> String -> String
-writeNode name n = "\tnode_" ++ n ++ "[label=\"" ++ name ++ "\"]\n"
+writeNode name n = "\tnode_" ++ n ++ "[label=\"" ++ (init . drop 1) (show name) ++ "\"]\n"
 
 writeConnection :: String -> String -> String -> String
 writeConnection from to label = "\tnode_" ++ from ++ " -> " ++ "node_" ++ to ++ "[label=\"" ++ label ++ "\"]\n"
 
 
 showNode :: Node -> String -> String
-showNode (N name (x:xs)) path = showNode (snd x) (path ++ fst x) ++ writeConnection path (path ++ fst x) (fst x) ++ showNode (N name xs) path
+showNode (N name (x:xs)) path = showNode (snd x) (path ++ fst x) ++ writeConnection path (path ++ fst x) ((init . drop 1) $ show $ fst x) ++ showNode (N name xs) path
 showNode (N name []) path = writeNode name path
 
 tographvizCI :: AltCon -> [ProveName] -> ProveExpression -> Node
