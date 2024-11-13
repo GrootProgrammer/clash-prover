@@ -64,38 +64,27 @@ simplifyStep :: ProveLanguage -> [ProveExpression] -> [ProveName] -> ProveExpres
 simplifyStep _ _ _ (Literal n) = Left (Literal n)
 simplifyStep lang stack free (Variable f)
     | f `elem` free = Left (Variable f)
-    | isPrimitive (Variable f) = executedVar
+    | isPrimitive (Variable f) = primitiveExecute stack (Variable f)
     | f_def /= Variable f = trace "Rule: variable_def" $ Right $ rerollStack stack f_def
     | otherwise = Left $ Variable f
     where
-        executedVar = primitiveExecute stack (Variable f)
         f_def = defExpr $ getVariableDef lang stack f
 simplifyStep lang (x:stack) free (Lambda n e) =
-    case simple_e of
-        Left _ -> trace "Rule: lambda simplification" $ Right $ rerollStack stack $ replaceVariable e n x
-        Right s_e -> Right $ rerollStack (x:stack) $ Lambda n s_e
-    where
-        simple_e = simplifyStep lang [] (n:free) e
+    Right $ rerollStack stack $ replaceVariable e n x
 simplifyStep lang [] free (Lambda x e)
     = fmap (Lambda x) (simplifyStep lang [] (x:free) e)
 simplifyStep lang stack free (Case ce b alts) =
     case matchCase ce alts of
         Nothing ->
-            case case_simplified of
-                Left _ -> case cases_simplified of
+            case  simplifyStep lang [] free ce of
+                Left _ -> case simplifyStepCases lang free alts of
                     Left _ -> Left $ Case ce b alts
                     Right cs -> trace "Rule: dict_case simplification" $ Right $ rerollStack stack $ Case ce b cs
                 Right e -> trace "Rule: dict_match simplification" $ Right $ rerollStack stack $ Case e b alts
         Just matched -> trace ("Rule: dict_matching: " ++ show matched) $ Right $ rerollStack stack (replaceVariable matched b ce)
-    where
-        cases_simplified = simplifyStepCases lang free alts
-        case_simplified = simplifyStep lang [] free ce
 simplifyStep lang stack free (DirectOperation dof x) =
-    case f_Simplify of
-        Left _ -> case x_Simplify of
+    case simplifyStep lang (x:stack) free dof of
+        Left _ -> case simplifyStep lang [] free x of
             Left _ -> Left $ DirectOperation dof x
             Right x_simp -> Right $ rerollStack stack $ DirectOperation dof x_simp
         Right f_simp -> Right f_simp
-    where
-        x_Simplify = simplifyStep lang [] free x
-        f_Simplify = simplifyStep lang (x:stack) free dof
