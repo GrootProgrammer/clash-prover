@@ -4,7 +4,17 @@
 
 -- | This module defines data types and instances for representing
 -- Core language constructs and transformations used within GHC.
-module CoreTranslate.Language where
+module CoreTranslate.Language (
+  NumTypes(..),
+  LiteralTypes(..),
+  ProveExpression(..),
+  ProveLanguage,
+  CaseInstance(..),
+  VariableDef(..),
+  ProveName(..),
+  ProveType(..),
+  stableUnique,
+) where
 
 import GHC.Core.TyCo.Compare (tcEqKind)
 import GHC.Core.TyCo.Rep
