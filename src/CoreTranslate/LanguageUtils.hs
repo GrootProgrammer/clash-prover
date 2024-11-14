@@ -40,6 +40,7 @@ tographvizCI :: AltCon -> [ProveName] -> ProveExpression -> Node
 tographvizCI con pn pe = N ("case: " ++ showPprUnsafe con) (("expression", tographviz pe) : zipWith (\bind i -> ("binding_" ++ (show @Integer) i, N (show bind) [])) pn [1..])
 
 tographviz :: ProveExpression -> Node
+tographviz (Literal (Dict n alts)) = N (show n) $ zipWith (\a i -> ("elem_" ++ (show @Integer) i, tographviz a)) alts [1..] 
 tographviz (Literal n) = N (show (Literal n)) []
 tographviz (Variable n) = N (show (Variable n)) []
 tographviz (Lambda n e) = N "lambda" [("expression", tographviz e), ("binding", tographviz (Variable n))]
