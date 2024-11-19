@@ -1,13 +1,15 @@
-module Language.Translate (
-  convertBinds,
-  convertExpression,
-  getVariableDef,
-  rerollStack
-) where
+module Language.Translate
+  ( convertBinds,
+    convertExpression,
+    getVariableDef,
+    rerollStack,
+    isPrimitive,
+  )
+where
 
+import qualified GHC.Plugins as GP
 import Language.Language
 import Language.LanguageUtils
-import qualified GHC.Plugins as GP
 import Prelude
 
 convertBinds :: [GP.CoreBind] -> ProveLanguage
@@ -42,17 +44,17 @@ convertAlt :: GP.Alt GP.CoreBndr -> CaseInstance
 convertAlt (GP.Alt con bind expr) = CI (convertAltCon con) (fmap PN bind) (convertExpression expr)
 
 convertNumType :: GP.LitNumType -> NumTypes
-convertNumType GP.LitNumBigNat  = NLitNumBigNat
-convertNumType GP.LitNumInt     = NLitNumInt
-convertNumType GP.LitNumInt8    = NLitNumInt8
-convertNumType GP.LitNumInt16   = NLitNumInt16
-convertNumType GP.LitNumInt32   = NLitNumInt32
-convertNumType GP.LitNumInt64   = NLitNumInt64
-convertNumType GP.LitNumWord    = NLitNumWord
-convertNumType GP.LitNumWord8   = NLitNumWord8
-convertNumType GP.LitNumWord16  = NLitNumWord16
-convertNumType GP.LitNumWord32  = NLitNumWord32
-convertNumType GP.LitNumWord64  = NLitNumWord64
+convertNumType GP.LitNumBigNat = NLitNumBigNat
+convertNumType GP.LitNumInt = NLitNumInt
+convertNumType GP.LitNumInt8 = NLitNumInt8
+convertNumType GP.LitNumInt16 = NLitNumInt16
+convertNumType GP.LitNumInt32 = NLitNumInt32
+convertNumType GP.LitNumInt64 = NLitNumInt64
+convertNumType GP.LitNumWord = NLitNumWord
+convertNumType GP.LitNumWord8 = NLitNumWord8
+convertNumType GP.LitNumWord16 = NLitNumWord16
+convertNumType GP.LitNumWord32 = NLitNumWord32
+convertNumType GP.LitNumWord64 = NLitNumWord64
 
 convertLiteral :: GP.Literal -> LiteralTypes
 convertLiteral (GP.LitChar c) =
@@ -67,23 +69,27 @@ convertLiteral (GP.LitDouble d) =
   LDouble d
 convertLiteral _ = error "not supported literal"
 
+isPrimitive :: VariableDef -> Bool
+isPrimitive (Def n1 (Variable n2)) = n1 == n2
+isPrimitive _ = False
+
 -- panics if ProveName is in the current Module
 getExternalVariableDef :: [ProveExpression] -> ProveName -> VariableDef
 getExternalVariableDef _ (PN _id) = case unfolding of
   GP.NoUnfolding -> Def (PN _id) (Variable (PN _id))
   GP.BootUnfolding -> Def (PN _id) (Variable (PN _id))
-  (GP.OtherCon []) -> Def (PN _id) (Literal (Constructor (PN _id)))
-  (GP.OtherCon [GP.DataAlt l]) -> Def (PN _id) (Literal (Constructor $ getProveNameForDatacon l))
+  (GP.OtherCon []) -> Def (PN _id) (Literal (Constructor (PN _id) []))
+  (GP.OtherCon [GP.DataAlt l]) -> Def (PN _id) (Literal (Constructor (getProveNameForDatacon l) []))
   (GP.OtherCon xs) -> error ("constructor with multiple options: " ++ GP.showPprUnsafe (GP.OtherCon xs))
-  (GP.DFunUnfolding vars c args) -> Def (PN _id) (foldr (Lambda . PN) (rerollStack (fmap convertExpression args) $ Literal $ Constructor $ getProveNameForDatacon c) vars)
+  (GP.DFunUnfolding vars c args) -> Def (PN _id) (foldr (Lambda . PN) (Literal $ Constructor (getProveNameForDatacon c) (fmap convertExpression args)) vars)
   (GP.CoreUnfolding expr _ _ _ _) -> Def (PN _id) (convertExpression expr)
   where
     unfolding = GP.realIdUnfolding _id
 
 getVariableDef :: ProveLanguage -> [ProveExpression] -> ProveName -> VariableDef
-getVariableDef (x:xs) context n
-    | defName x == n = x
-    | otherwise = getVariableDef xs context n
+getVariableDef (x : xs) context n
+  | defName x == n = x
+  | otherwise = getVariableDef xs context n
 getVariableDef [] context n = getExternalVariableDef context n
 
 rerollStack :: [ProveExpression] -> ProveExpression -> ProveExpression

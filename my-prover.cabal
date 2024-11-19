@@ -50,8 +50,6 @@ library
     exposed-modules:
       CorePrintPlugin,
       Properties,
-      Prove.ProveSimpleEquiv,
-      Prove.MealyProver
     other-modules:
       CorePrinter,
       Language.Language,
@@ -59,9 +57,8 @@ library
       Language.Translate,
       Language.LanguageUtils,
       Language,
-      Execute.Primitives,
-      Execute.Simplify,
-      Prove.ToSmt
+      Primitives,
+      Rewrite.Simplify,
     build-depends:    base,
                       ghc,
                       exceptions,

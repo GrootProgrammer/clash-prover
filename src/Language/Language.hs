@@ -4,18 +4,19 @@
 
 -- | This module defines data types and instances for representing
 -- Core language constructs and transformations used within GHC.
-module Language.Language (
-  NumTypes(..),
-  LiteralTypes(..),
-  ProveExpression(..),
-  ProveLanguage,
-  CaseInstance(..),
-  VariableDef(..),
-  ProveName(..),
-  ProveType(..),
-  CaseMatch(..),
-  stableUnique,
-) where
+module Language.Language
+  ( NumTypes (..),
+    LiteralTypes (..),
+    ProveExpression (..),
+    ProveLanguage,
+    CaseInstance (..),
+    VariableDef (..),
+    ProveName (..),
+    ProveType (..),
+    CaseMatch (..),
+    stableUnique,
+  )
+where
 
 import GHC.Core.TyCo.Compare (tcEqKind)
 import GHC.Core.TyCo.Rep
@@ -69,7 +70,8 @@ data LiteralTypes
   | -- | Bottom (error) literal with a message
     Bottom String
   | -- | Constructor literal
-    Constructor ProveName
+    Constructor ProveName [ProveExpression]
+  | Symbolic String
   deriving (Show, Eq)
 
 -- | Core language expressions, allowing various types of terms, variables, and constructs.
@@ -107,12 +109,6 @@ newtype ProveName = PN GP.Id
 
 -- | Represents a type in the Core language.
 newtype ProveType = PT Kind
-
-getConstructorFromType :: ProveType -> Maybe [ProveName]
-getConstructorFromType (PT a) =  fmap (fmap getProveNameForDatacon) (GP.tyConAppTyCon_maybe a >>= GP.tyConDataCons_maybe)
-
-getProveNameForDatacon :: GP.DataCon -> ProveName
-getProveNameForDatacon = PN . GP.dataConWrapId
 
 -- | Custom 'Eq' instance for 'ProveName' based on its string representation.
 instance Eq ProveName where

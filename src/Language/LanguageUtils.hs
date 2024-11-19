@@ -1,29 +1,35 @@
-module Language.LanguageUtils (
-  createIntCI,
-  replaceVariable,
-  isWHNF,
-  getConstructorFromType,
-  getProveNameForDatacon
-) where
+module Language.LanguageUtils
+  ( createIntCI,
+    replaceVariable,
+    isWHNF,
+    getConstructorFromType,
+    getProveNameForDatacon,
+  )
+where
 
 import qualified GHC.Plugins as GP
-
 import Language.Language
 
 createIntCI :: Integer -> [ProveName] -> ProveExpression -> CaseInstance
 createIntCI i = CI (CaseLit $ LNumber NLitNumInteger i)
+
+recursiveSplitReplace :: GP.Type -> ProveName -> GP.Type -> GP.Type
+recursiveSplitReplace original from to = case GP.splitAppTy_maybe original of
+  Just (left, right) -> GP.mkAppTy (recursiveSplitReplace left from to) (recursiveSplitReplace right from to)
+  Nothing -> case GP.getTyVar_maybe original of
+    Just _id -> if PN _id == from then to else original
+    Nothing -> original
 
 replaceVariable :: ProveExpression -> ProveName -> ProveExpression -> ProveExpression
 replaceVariable (Variable n) from to
   | n == from = to
   | otherwise = Variable n
 replaceVariable (Literal (Typed (PT t))) from (Literal (Typed (PT t2))) =
-  Literal
-  $ Typed 
-  $ PT 
-  $ case GP.getTyVar_maybe t of
-    Just _id -> if PN _id == from then t2 else t
-    Nothing -> t
+  Literal $
+    Typed $
+      PT $
+        recursiveSplitReplace t from t2
+replaceVariable (Literal (Constructor n expr)) from to = Literal $ Constructor n $ fmap (\e -> replaceVariable e from to) expr
 replaceVariable (Literal l) _ _ = Literal l
 replaceVariable (Lambda n e) from to
   | n == from = Lambda n e
@@ -46,7 +52,7 @@ isWHNF (DirectOperation e _) = isWHNF e
 isWHNF (Let _ e) = isWHNF e
 
 getConstructorFromType :: ProveType -> Maybe [ProveName]
-getConstructorFromType (PT a) =  fmap (fmap getProveNameForDatacon) (GP.tyConAppTyCon_maybe a >>= GP.tyConDataCons_maybe)
+getConstructorFromType (PT a) = fmap (fmap getProveNameForDatacon) (GP.tyConAppTyCon_maybe a >>= GP.tyConDataCons_maybe)
 
 getProveNameForDatacon :: GP.DataCon -> ProveName
 getProveNameForDatacon = PN . GP.dataConWrapId
