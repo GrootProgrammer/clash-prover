@@ -29,7 +29,7 @@ data NumTypes
     NLitNumInteger
   | -- | Natural number type
     NLitNumNatural
-  | -- | Arbitrary precision natural numbers
+  | -- | Arbitrary natural numbers, no bound
     NLitNumBigNat
   | -- | Standard Int type
     NLitNumInt
@@ -94,6 +94,7 @@ data ProveExpression
 data CaseInstance = CI CaseMatch [ProveName] ProveExpression
   deriving (Eq, Show)
 
+-- | Represents the three possible cases of a case match, either an UNBOXED literal, a constructor or DEFAULT
 data CaseMatch = CaseLit LiteralTypes | Cons ProveName | DEFAULT
   deriving (Eq, Show)
 

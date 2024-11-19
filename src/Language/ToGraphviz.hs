@@ -11,8 +11,10 @@ where
 
 import Language.Language
 
+-- | represents a node in the tree for Graphviz
 data Node = N String [(String, Node)]
 
+-- | write s graphviz node, correctly escapes its characters in the label
 writeNode ::
   String ->
   String ->
@@ -20,6 +22,7 @@ writeNode ::
 writeNode name n =
   "\tnode_" ++ n ++ "[label=\"" ++ (init . drop 1) (show name) ++ "\"]\n"
 
+-- | Writes a connection in Graphviz, correctly escapes its characters in the label
 writeConnection ::
   String ->
   String ->
@@ -28,6 +31,7 @@ writeConnection ::
 writeConnection from to label =
   "\tnode_" ++ from ++ " -> " ++ "node_" ++ to ++ "[label=\"" ++ label ++ "\"]\n"
 
+-- | Convert a Node to a string in dot notation, prefixes all nodes with the second parameter to prevent naming conflicts
 showNode ::
   Node ->
   String ->
@@ -35,9 +39,12 @@ showNode ::
 showNode (N name (x : xs)) path = showNode (snd x) (path ++ fst x) ++ writeConnection path (path ++ fst x) ((init . drop 1) $ show $ fst x) ++ showNode (N name xs) path
 showNode (N name []) path = writeNode name path
 
+-- | converts a case instance to graphviz notation
 toGraphvizCI :: CaseMatch -> [ProveName] -> ProveExpression -> Node
 toGraphvizCI con pn pe = N ("case: " ++ show con) (("expression", toGraphviz pe) : zipWith (\bind i -> ("binding_" ++ (show @Integer) i, N (show bind) [])) pn [1 ..])
 
+-- | Recursivly converts a given expression into a Node meant for rendering in graphviz notation
+-- Chaining it with showNode ( showNode (toGraphviz expression) "" ) gives a proper graphviz equivalent of the expression without the "digraph g { %s }" part.
 toGraphviz :: ProveExpression -> Node
 toGraphviz (Literal (Constructor n expr)) = N ("constructor: " ++ show n ++ ", " ++ show (take 1 expr)) []
 toGraphviz (Literal n) = N (show (Literal n)) []
