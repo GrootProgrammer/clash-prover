@@ -1,19 +1,23 @@
 module Language
-  ( -- | exported from .Language
+  ( -- | exported from .Types
     NumTypes (..),
+    LanguageName (..),
     LiteralTypes (..),
     ProveExpression (..),
     ProveLanguage,
     CaseInstance (..),
-    VariableDef (..),
-    ProveName,
-    ProveType,
     CaseMatch (..),
-    stableUnique,
-    getConstructorFromType,
+    VariableDef (..),
+    ProveName (..),
+    ProveType (..),
+    -- | exported from .LanguageUtils
     createIntCI,
-    replaceVariable,
+    alphaConversion,
+    typeAlphaConversion,
+    isWHNF,
+    getConstructorFromType,
     getProveNameForDatacon,
+    getConstructorsFromName,
     -- | exported from Translate
     convertBinds,
     convertExpression,
@@ -21,7 +25,7 @@ module Language
     rerollStack,
     isPrimitive,
     -- | exported from ToGraphViz
-    Node,
+    Node (..),
     writeNode,
     writeConnection,
     showNode,
@@ -29,8 +33,7 @@ module Language
   )
 where
 
-import Language.Language
 import Language.LanguageUtils
 import Language.ToGraphviz
 import Language.Translate
-
+import Language.Types

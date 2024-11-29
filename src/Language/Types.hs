@@ -1,20 +1,22 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 -- | This module defines data types and instances for representing
 -- Core language constructs and transformations used within GHC.
-module Language.Language
+module Language.Types
   ( NumTypes (..),
+    LanguageName (..),
     LiteralTypes (..),
     ProveExpression (..),
     ProveLanguage,
     CaseInstance (..),
+    CaseMatch (..),
     VariableDef (..),
     ProveName (..),
     ProveType (..),
-    CaseMatch (..),
-    stableUnique,
   )
 where
 
@@ -53,8 +55,21 @@ data NumTypes
     NLitNumWord64
   deriving (Show, Eq)
 
+-- | A workaround to the fact that we cannot generate Id *easily* while already in the plugin
+class (Show o, Eq o) => LanguageName o where
+  getName :: o -> String
+  getShortName :: o -> String
+  getShortName = getName
+  getType :: o -> ProveType
+  updateType :: o -> ProveType -> o
+  convert :: ProveName -> o
+  convert n = create (getName n) (getType n)
+  create :: String -> ProveType -> o
+  getProveName :: o -> ProveName
+  getProveName = undefined
+
 -- | Types of literals used in Core expressions.
-data LiteralTypes
+data (LanguageName n) => LiteralTypes n
   = -- | Character literal
     LChar Char
   | -- | Numeric literal with specific numeric type
@@ -70,46 +85,43 @@ data LiteralTypes
   | -- | Bottom (error) literal with a message
     Bottom String
   | -- | Constructor literal
-    Constructor ProveName [ProveExpression]
+    Constructor n [ProveExpression n]
   | Symbolic String
   deriving (Show, Eq)
 
 -- | Core language expressions, allowing various types of terms, variables, and constructs.
-data ProveExpression
+data (LanguageName l) => ProveExpression l
   = -- | Literal expression
-    Literal {_lt :: LiteralTypes}
+    Literal {_lt :: LiteralTypes l}
   | -- | Variable expression
-    Variable {_name :: ProveName}
+    Variable {_name :: l}
   | -- | Lambda expression
-    Lambda {_name :: ProveName, _expr :: ProveExpression}
+    Lambda {_name :: l, _expr :: ProveExpression l}
   | -- | Let statement, equivalent to where and let (INVARIANT: only used in recursive calls)
-    Let {letExpr :: VariableDef, _expr :: ProveExpression}
+    Let {letExpr :: VariableDef l, _expr :: ProveExpression l}
   | -- | Case expression with a binder and alternatives (INVARIANT: default is first case)
-    Case {_binding :: ProveExpression, _result_binder :: ProveName, _options :: [CaseInstance]}
+    Case {_binding :: ProveExpression l, _result_binder :: l, _options :: [CaseInstance l]}
   | -- | Direct operation between expressions ( f a b -> DirectOperation (DirectOperation f a) b )
-    DirectOperation {_expr :: ProveExpression, _arg :: ProveExpression}
+    DirectOperation {_expr :: ProveExpression l, _arg :: ProveExpression l}
   deriving (Show, Eq)
 
 -- | Represents a single case alternative in a 'Case' expression.
-data CaseInstance = CI CaseMatch [ProveName] ProveExpression
+data (LanguageName l) => CaseInstance l = CI (CaseMatch l) [l] (ProveExpression l)
   deriving (Eq, Show)
 
 -- | Represents the three possible cases of a case match, either an UNBOXED literal, a constructor or DEFAULT
-data CaseMatch = CaseLit LiteralTypes | Cons ProveName | DEFAULT
+data (LanguageName l) => CaseMatch l = CaseLit (LiteralTypes l) | Cons l | DEFAULT
   deriving (Eq, Show)
 
 -- | Defines a variable and its associated expression in the Core language.
-data VariableDef = Def {defName :: ProveName, defExpr :: ProveExpression}
+data (LanguageName l) => VariableDef l = Def {defName :: l, defExpr :: ProveExpression l}
   deriving (Show, Eq)
 
 -- | Type synonym for the Core language, represented as a list of variable definitions.
-type ProveLanguage = [VariableDef]
+type ProveLanguage l = [VariableDef l]
 
 -- | Represents a variable name in the Core language.
 newtype ProveName = PN GP.Id
-
--- | Represents a type in the Core language.
-newtype ProveType = PT Kind
 
 -- | Custom 'Eq' instance for 'ProveName' based on its string representation.
 instance Eq ProveName where
@@ -122,6 +134,36 @@ stableUnique (PN v) = GP.nameStableString (GP.getName v)
 -- | Custom 'Show' instance for 'ProveName' using stable name and unique identifier.
 instance Show ProveName where
   show (PN v) = GP.nameStableString (GP.getName v) ++ "(" ++ show (GP.getUnique $ GP.getName v) ++ ")"
+
+instance LanguageName ProveName where
+  getName = show
+  getShortName = stableUnique
+  getType (PN n) = PT $ GP.varType n
+  convert = id
+  updateType (PN n) (PT t) = PN $ GP.setVarType n t
+  create = undefined
+
+data StringName = SN {_getName :: String, _getType :: ProveType}
+  deriving (Show, Eq)
+
+instance LanguageName StringName where
+  getName = _getName
+  getType = _getType
+  updateType (SN name _) = SN name
+  create = SN
+
+type StringOrCoreName = Either ProveName StringName
+
+instance LanguageName StringOrCoreName where
+  getName = either getName getName
+  getShortName = either getShortName getShortName
+  getType = either getType getType
+  updateType lr t = either (\v -> Left $ updateType v t) (\v -> Right $ updateType v t) lr
+  create = (Right .) . create
+  getProveName = either getProveName getProveName
+
+-- | Represents a type in the Core language.
+newtype ProveType = PT {_getKind :: Kind}
 
 -- | Custom 'Show' instance for 'ProveType' for pretty-printing the kind.
 instance Show ProveType where

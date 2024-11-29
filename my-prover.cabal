@@ -20,19 +20,7 @@ common clash-options
 
     -- Clash needs access to the source code in compiled modules
     -fexpose-all-unfoldings
-
-    -- Worker wrappers introduce unstable names for functions that might have
-    -- blackboxes attached for them. You can disable this, but be sure to add
-    -- a no-specialize pragma to every function with a blackbox.
     -fno-worker-wrapper
-
-    -- Strict annotations - while sometimes preventing space leaks - trigger
-    -- optimizations Clash can't deal with. See:
-    --
-    --    https://github.com/clash-lang/clash-compiler/issues/2361
-    --
-    -- These flags disables these optimizations. Note that the fields will
-    -- remain strict.
     -fno-unbox-small-strict-fields
     -fno-unbox-strict-fields
   build-depends:
@@ -52,13 +40,15 @@ library
       Properties,
     other-modules:
       CorePrinter,
-      Language.Language,
+      Language.Types,
       Language.ToGraphviz,
       Language.Translate,
       Language.LanguageUtils,
       Language,
       Primitives,
-      Rewrite.Simplify,
+      --Rewrite.Simplify,
+      Rewrite.Deconstruct,
+      Invariants
     build-depends:    base,
                       ghc,
                       exceptions,
@@ -92,6 +82,7 @@ executable clash
 
 -- Builds the executable 'clashi', with simple project in scope
 executable clashi
+  import: clash-options
   main-is: clashi.hs
   hs-source-dirs:   bin
   default-language: Haskell2010

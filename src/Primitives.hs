@@ -8,7 +8,6 @@ import Debug.Trace (trace)
 import GHC.Builtin.Types (falseDataConId)
 import GHC.Plugins (trueDataConId)
 import Language hiding (isPrimitive)
-import Language.Language (ProveName (PN))
 
 primitivesStr ::
   [String]
@@ -26,24 +25,19 @@ primitivesStr =
     "$ghc-bignum$GHC.Num.Natural$naturalLe"
   ]
 
-isPrimitive ::
-  ProveExpression ->
-  Bool
+isPrimitive :: (LanguageName o) => ProveExpression o -> Bool
 isPrimitive
   (Variable primName) =
-    stableUnique primName `elem` primitivesStr
+    getShortName primName `elem` primitivesStr
 isPrimitive _ =
   False
 
 -- f stack e tries to resolve e if e is a primitive and enough stack values are correct signature, will reroll stack if resolved else return the input
-primitiveExecute ::
-  [ProveExpression] ->
-  ProveExpression ->
-  Either ProveExpression ProveExpression
+primitiveExecute :: (LanguageName l) => [ProveExpression l] -> ProveExpression l -> Either (ProveExpression l) (ProveExpression l)
 primitiveExecute
   stack
   (Variable primName) =
-    case (stack, stableUnique primName) of
+    case (stack, getShortName primName) of
       ( Literal (LNumber NLitNumInt32 an) : Literal (LNumber NLitNumInt32 bn) : xs,
         "ghc-prim$GHC.Prim$plusInt32#"
         ) ->
@@ -113,14 +107,14 @@ primitiveExecute
           rerollStack xs $
             Literal $
               Constructor
-                (if an < ab then PN trueDataConId else PN falseDataConId)
+                (convert $ if an < ab then PN trueDataConId else PN falseDataConId)
                 []
       ((Literal (LNumber NLitNumNatural an)) : (Literal (LNumber NLitNumNatural ab)) : xs, "$ghc-bignum$GHC.Num.Natural$naturalLe") ->
         Right $
           rerollStack xs $
             Literal $
               Constructor
-                (if an <= ab then PN trueDataConId else PN falseDataConId)
+                (convert $ if an <= ab then PN trueDataConId else PN falseDataConId)
                 []
       (_, _) ->
         Left $

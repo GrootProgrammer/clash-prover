@@ -13,36 +13,37 @@ data EquivMealy input state1 state2 result = EquivMealy (state1 -> input -> (sta
 
 data EquivCond input result = EquivCond (input -> Bool) (input -> result) (input -> result) deriving (Typeable)
 
-findEquivInLanguage :: ProveLanguage -> [VariableDef]
+findEquivInLanguage :: ProveLanguage ProveName -> [VariableDef ProveName]
 findEquivInLanguage = mapMaybe findEquivInDef
 
-findEquivMealyInLanguage :: ProveLanguage -> [VariableDef]
+findEquivMealyInLanguage :: (LanguageName l) => [VariableDef l] -> [VariableDef l]
 findEquivMealyInLanguage = mapMaybe findEquivMealyInDef
 
-isNameCall :: String -> ProveExpression -> Bool
-isNameCall s (Variable exprVarName) = stableUnique exprVarName == s
+isNameCall :: (LanguageName o) => String -> ProveExpression o -> Bool
+isNameCall s (Variable exprVarName) = getShortName exprVarName == s
 isNameCall s (Lambda _ a) = isNameCall s a
 isNameCall s (DirectOperation e _) = isNameCall s e
 isNameCall _ _ = False
 
-collect :: ProveExpression -> [ProveExpression]
-collect (Literal _) = []
-collect (Variable _) = []
-collect (Lambda _ _) = []
-collect (Case _ _ _) = []
+collect :: (LanguageName l) => ProveExpression l -> [ProveExpression l]
+collect (Literal {}) = []
+collect (Variable {}) = []
+collect (Lambda {}) = []
+collect (Case {}) = []
+collect (Let {}) = []
 collect (DirectOperation e a) = a : collect e
 
-extractEquivInfo :: ProveExpression -> (ProveExpression, ProveExpression, ProveExpression, ProveExpression)
+extractEquivInfo :: (LanguageName l) => ProveExpression l -> (ProveExpression l, ProveExpression l, ProveExpression l, ProveExpression l)
 extractEquivInfo def = case abcd of
-  [a, b, c, d] -> (a, b, c, d)
+  [a, b, c, d] -> (d, c, b, a)
   _ -> error "wrong amount of stack"
   where
     abcd = collect def
 
 -- as Equiv has 2 (type) parameters and 2 args it becomes Def _ (DO (DO EquivString arg1) arg2)
-findEquivInDef :: VariableDef -> Maybe VariableDef
+findEquivInDef :: (LanguageName o) => VariableDef o -> Maybe (VariableDef o)
 findEquivInDef def = if isNameCall "$my-prover-0.1.0.0-inplace$Properties$Equiv" (defExpr def) then Just def else Nothing
 
 -- as Equiv has 2 (type) parameters and 2 args it becomes Def _ (DO (DO EquivString arg1) arg2)
-findEquivMealyInDef :: VariableDef -> Maybe VariableDef
+findEquivMealyInDef :: (LanguageName o) => VariableDef o -> Maybe (VariableDef o)
 findEquivMealyInDef def = if isNameCall "$my-prover-0.1.0.0-inplace$Properties$EquivMealy" (defExpr def) then Just def else Nothing

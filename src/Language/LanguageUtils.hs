@@ -1,54 +1,58 @@
 module Language.LanguageUtils
   ( createIntCI,
-    replaceVariable,
+    alphaConversion,
+    typeAlphaConversion,
     isWHNF,
     getConstructorFromType,
     getProveNameForDatacon,
+    getConstructorsFromName,
   )
 where
 
 import qualified GHC.Plugins as GP
-import Language.Language
+import Language.Types
 
 -- | create a casematch for a specific integer number, mostly used for enum types.
-createIntCI :: Integer -> [ProveName] -> ProveExpression -> CaseInstance
+createIntCI :: (LanguageName l) => Integer -> [l] -> ProveExpression l -> CaseInstance l
 createIntCI i = CI (CaseLit $ LNumber NLitNumInteger i)
 
+splitType :: ProveType -> Maybe (ProveType, ProveType)
+splitType (PT t) = (\(a, b) -> (PT a, PT b)) <$> GP.splitAppTy_maybe t
+
 -- | recursivly replace the first param by the third param if it matches the second param in a type, does type deconstruction and reconstruction to achieve this.
-recursiveSplitReplace :: GP.Type -> ProveName -> GP.Type -> GP.Type
-recursiveSplitReplace original from to = case GP.splitAppTy_maybe original of
-  Just (left, right) -> GP.mkAppTy (recursiveSplitReplace left from to) (recursiveSplitReplace right from to)
-  Nothing -> case GP.getTyVar_maybe original of
-    Just _id -> if PN _id == from then to else original
-    Nothing -> original
+typeAlphaConversion :: (LanguageName l) => ProveType -> l -> ProveType -> ProveType
+typeAlphaConversion expr from to = case splitType expr of
+  Just (left, right) -> PT $ GP.mkAppTy (_getKind $ typeAlphaConversion left from to) (_getKind (typeAlphaConversion right from to))
+  Nothing -> case GP.getTyVar_maybe $ _getKind expr of
+    Just _id -> if convert (PN _id) == from then to else expr
+    Nothing -> expr
 
 -- | recursivly replace the first param by the third param if it matches the second param.
 -- Does not replace if encountering a lambda with the same ProveName to preserve correctness in recursive calls.
-replaceVariable :: ProveExpression -> ProveName -> ProveExpression -> ProveExpression
-replaceVariable (Variable n) from to
+alphaConversion :: (LanguageName nType) => ProveExpression nType -> nType -> ProveExpression nType -> ProveExpression nType
+alphaConversion (Variable n) from to
   | n == from = to
   | otherwise = Variable n
-replaceVariable (Literal (Typed (PT t))) from (Literal (Typed (PT t2))) =
+alphaConversion (Literal (Typed t)) from (Literal (Typed t2)) =
   Literal $
     Typed $
-      PT $
-        recursiveSplitReplace t from t2
-replaceVariable (Literal (Constructor n expr)) from to = Literal $ Constructor n $ fmap (\e -> replaceVariable e from to) expr
-replaceVariable (Literal l) _ _ = Literal l
-replaceVariable (Lambda n e) from to
+      typeAlphaConversion t from t2
+alphaConversion (Literal (Constructor n expr)) from to = Literal $ Constructor n $ fmap (\e -> alphaConversion e from to) expr
+alphaConversion (Literal l) _ _ = Literal l
+alphaConversion (Lambda n e) from to
   | n == from = Lambda n e
-  | otherwise = Lambda n (replaceVariable e from to)
-replaceVariable (Case e b alts) a (Variable c) =
-  Case (replaceVariable e a (Variable c)) (if a == c then b else a) (fmap (\(CI con binds ae) -> CI con binds (replaceVariable ae a (Variable c))) alts)
-replaceVariable (Case e b alts) from to =
-  Case (replaceVariable e from to) b (fmap (\(CI con binds ae) -> CI con binds (replaceVariable ae from to)) alts)
-replaceVariable (DirectOperation dof a) from to = DirectOperation (replaceVariable dof from to) (replaceVariable a from to)
-replaceVariable (Let (Def n g) e) from to
+  | otherwise = Lambda n (alphaConversion e from to)
+alphaConversion (Case e b alts) a (Variable c) =
+  Case (alphaConversion e a (Variable c)) (if a == c then b else a) (fmap (\(CI con binds ae) -> CI con binds (alphaConversion ae a (Variable c))) alts)
+alphaConversion (Case e b alts) from to =
+  Case (alphaConversion e from to) b (fmap (\(CI con binds ae) -> CI con binds (alphaConversion ae from to)) alts)
+alphaConversion (DirectOperation dof a) from to = DirectOperation (alphaConversion dof from to) (alphaConversion a from to)
+alphaConversion (Let (Def n g) e) from to
   | n == from = Let (Def n g) e
-  | otherwise = Let (Def n (replaceVariable e from to)) (replaceVariable e from to)
+  | otherwise = Let (Def n (alphaConversion e from to)) (alphaConversion e from to)
 
 -- | checks if the given expression is in WHNF (can be matched against).
-isWHNF :: ProveExpression -> Bool
+isWHNF :: (LanguageName w) => ProveExpression w -> Bool
 isWHNF (Variable {}) = False
 isWHNF (Literal {}) = True
 isWHNF (Lambda {}) = False
@@ -56,10 +60,13 @@ isWHNF (Case {}) = False
 isWHNF (DirectOperation e _) = isWHNF e
 isWHNF (Let _ e) = isWHNF e
 
+getConstructorsFromName :: (LanguageName l) => l -> Maybe [l]
+getConstructorsFromName n = getConstructorFromType (getType n)
+
 -- | get all the possible constructors from a type, might fail but has not been observed yet
-getConstructorFromType :: ProveType -> Maybe [ProveName]
-getConstructorFromType (PT a) = fmap (fmap getProveNameForDatacon) (GP.tyConAppTyCon_maybe a >>= GP.tyConDataCons_maybe)
+getConstructorFromType :: (LanguageName l) => ProveType -> Maybe [l]
+getConstructorFromType (PT a) = ((convert . getProveNameForDatacon) <$>) <$> (GP.tyConAppTyCon_maybe a >>= GP.tyConDataCons_maybe)
 
 -- | get a constructors ProveName, should be equal for equivalent constructors in source code
-getProveNameForDatacon :: GP.DataCon -> ProveName
-getProveNameForDatacon = PN . GP.dataConWrapId
+getProveNameForDatacon :: (LanguageName l) => GP.DataCon -> l
+getProveNameForDatacon = convert . PN . GP.dataConWrapId

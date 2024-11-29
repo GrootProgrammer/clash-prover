@@ -9,7 +9,7 @@ module Language.ToGraphviz
   )
 where
 
-import Language.Language
+import Language.Types
 
 -- | represents a node in the tree for Graphviz
 data Node = N String [(String, Node)]
@@ -40,15 +40,15 @@ showNode (N name (x : xs)) path = showNode (snd x) (path ++ fst x) ++ writeConne
 showNode (N name []) path = writeNode name path
 
 -- | converts a case instance to graphviz notation
-toGraphvizCI :: CaseMatch -> [ProveName] -> ProveExpression -> Node
+toGraphvizCI :: (LanguageName l) => CaseMatch l -> [l] -> ProveExpression l -> Node
 toGraphvizCI con pn pe = N ("case: " ++ show con) (("expression", toGraphviz pe) : zipWith (\bind i -> ("binding_" ++ (show @Integer) i, N (show bind) [])) pn [1 ..])
 
 -- | Recursivly converts a given expression into a Node meant for rendering in graphviz notation
 -- Chaining it with showNode ( showNode (toGraphviz expression) "" ) gives a proper graphviz equivalent of the expression without the "digraph g { %s }" part.
-toGraphviz :: ProveExpression -> Node
-toGraphviz (Literal (Constructor n expr)) = N ("constructor: " ++ show n ++ ", " ++ show (take 1 expr)) []
+toGraphviz :: (LanguageName l) => ProveExpression l -> Node
+toGraphviz (Literal (Constructor n expr)) = N ("constructor: " ++ getShortName n ++ ", " ++ show (take 1 expr)) []
 toGraphviz (Literal n) = N (show (Literal n)) []
-toGraphviz (Variable n) = N (stableUnique n) []
+toGraphviz (Variable n) = N (getShortName n) []
 toGraphviz (Lambda n e) = N "lambda" [("expression", toGraphviz e), ("binding", toGraphviz $ Variable n)]
 toGraphviz (Case n b e) = N "case" (("match", toGraphviz n) : ("result_bind", N (show b) []) : zipWith (\(CI a p cie) i -> ("case_" ++ (show @Integer) i, toGraphvizCI a p cie)) e [1 ..])
 toGraphviz (DirectOperation e a) = N "Operation" [("expression", toGraphviz e), ("arg", toGraphviz a)]

@@ -1,4 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
 
 module CorePrintPlugin (plugin) where
 
@@ -6,7 +7,7 @@ import Debug.Trace
 import GHC.Plugins
 import Language
 import Properties
-import Rewrite.Simplify
+import Rewrite.Deconstruct
 import Prelude
 
 plugin :: Plugin
@@ -22,14 +23,19 @@ getEither (Right r) = r
 install :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
 install _ todo = return (CoreDoPluginPass "Say name" pass : todo)
 
-printSimplify :: ProveLanguage -> ProveExpression -> IO ()
-printSimplify lang ex = putStr $ show $ iterateUntilLeft (traceWith (\e -> "starting graph:\n" ++ (toGraphviz (getEither e) `showNode` "") ++ "\nending graph\n") . simplifyStep lang [] []) ex
+printSimplify :: ProveLanguage ProveName -> ProveExpression ProveName -> IO ()
+printSimplify lang ex = putStr $ show $ iterateUntilNothing (traceWith (maybe "Nothing" (\e -> "starting graph:\n" ++ ((toGraphvizPath e) `showNode` "") ++ "\nending graph\n")) . deconstructStep lang []) (Node ex)
 
 pass :: ModGuts -> CoreM ModGuts
 pass guts = do
   liftIO $ print lang
-  mapM_ (liftIO . printSimplify lang . traceWith (\e -> "starting graph:\n" ++ (toGraphviz e `showNode` "") ++ "\nending graph\n") . defExpr) equivs
+  mapM_ (liftIO . printSimplify lang . traceWith (\e -> "starting graph:\n" ++ (toGraphviz e `showNode` "") ++ "\nending graph\n")) [left, right]
   return guts
   where
+    ( _, _, left, right) = firstEquiv
+    firstEquiv = head equivs_partition
+    equivs_partition = map (extractEquivInfo . defExpr) equivs
+    equivs :: [VariableDef ProveName]
     equivs = findEquivInLanguage lang
+    lang :: ProveLanguage ProveName
     lang = convertBinds $ mg_binds guts
