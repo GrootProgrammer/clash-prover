@@ -1,6 +1,7 @@
 module Primitives
   ( isPrimitive,
     primitiveExecute,
+    primitiveConsumption,
   )
 where
 
@@ -8,29 +9,40 @@ import Debug.Trace (trace)
 import GHC.Builtin.Types (falseDataConId)
 import GHC.Plugins (trueDataConId)
 import Language hiding (isPrimitive)
+import Data.List (find)
 
+--name, stackConsumption
 primitivesStr ::
-  [String]
+  [(String, Integer)]
 primitivesStr =
-  [ "ghc-prim$GHC.Prim$plusInt32#",
-    "$ghc-prim$GHC.Prim$intToInt32#",
-    "$ghc-prim$GHC.Prim$subInt32#",
-    "$ghc-prim$GHC.Prim$wordToWord32#",
-    "$ghc-bignum$GHC.Num.Integer$integerToWord#",
-    "$ghc-bignum$GHC.Num.Integer$integerFromNatural",
-    "$ghc-bignum$GHC.Num.Integer$IS",
-    "$ghc-bignum$GHC.Num.Natural$NS",
-    "$ghc-prim$GHC.Prim$tagToEnum#",
-    "$ghc-bignum$GHC.Num.Natural$naturalLt",
-    "$ghc-bignum$GHC.Num.Natural$naturalLe"
+  [ ("ghc-prim$GHC.Prim$plusInt32#",                    2),
+    ("$ghc-prim$GHC.Prim$intToInt32#",                  1),
+    ("$ghc-prim$GHC.Prim$subInt32#",                    2),
+    ("$ghc-prim$GHC.Prim$wordToWord32#",                1),
+    ("$ghc-bignum$GHC.Num.Integer$integerToWord#",      1),
+    ("$ghc-bignum$GHC.Num.Integer$integerFromNatural",  1),
+    ("$ghc-bignum$GHC.Num.Integer$IS",                  1),
+    ("$ghc-bignum$GHC.Num.Natural$NS",                  1),
+    ("$ghc-prim$GHC.Prim$tagToEnum#",                   1),
+    ("$ghc-bignum$GHC.Num.Natural$naturalLt",           2),
+    ("$ghc-bignum$GHC.Num.Natural$naturalLe",           2),
+    ("$ghc-bignum$GHC.Num.Integer$integerToInt#",       1)
   ]
 
 isPrimitive :: (LanguageName o) => ProveExpression o -> Bool
 isPrimitive
   (Variable primName) =
-    getShortName primName `elem` primitivesStr
+    getShortName primName `elem` (map fst primitivesStr)
 isPrimitive _ =
   False
+
+primitiveConsumption :: (LanguageName o) => ProveExpression o -> Integer
+primitiveConsumption
+  (Variable primName) =
+    case find (\(n,_) -> n == getShortName primName) primitivesStr of
+      Nothing -> 0
+      Just (_, i) -> i
+primitiveConsumption _ = 0
 
 -- f stack e tries to resolve e if e is a primitive and enough stack values are correct signature, will reroll stack if resolved else return the input
 primitiveExecute :: (LanguageName l) => [ProveExpression l] -> ProveExpression l -> Either (ProveExpression l) (ProveExpression l)
@@ -108,15 +120,18 @@ primitiveExecute
             Literal $
               Constructor
                 (convert $ if an < ab then PN trueDataConId else PN falseDataConId)
-                []
       ((Literal (LNumber NLitNumNatural an)) : (Literal (LNumber NLitNumNatural ab)) : xs, "$ghc-bignum$GHC.Num.Natural$naturalLe") ->
         Right $
           rerollStack xs $
             Literal $
               Constructor
                 (convert $ if an <= ab then PN trueDataConId else PN falseDataConId)
-                []
+      ((Literal (LNumber NLitNumInteger an)) : xs, "$ghc-bignum$GHC.Num.Integer$integerToInt#") ->
+        Right $
+          rerollStack xs $
+            Literal $
+              LNumber NLitNumInt an
       (_, _) ->
         Left $
           Variable primName
-primitiveExecute _ e = Left e
+primitiveExecute _ e = trace "no match" $ Left e

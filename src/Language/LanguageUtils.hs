@@ -6,6 +6,7 @@ module Language.LanguageUtils
     getConstructorFromType,
     getProveNameForDatacon,
     getConstructorsFromName,
+    getWHNFcase,
   )
 where
 
@@ -37,7 +38,7 @@ alphaConversion (Literal (Typed t)) from (Literal (Typed t2)) =
   Literal $
     Typed $
       typeAlphaConversion t from t2
-alphaConversion (Literal (Constructor n expr)) from to = Literal $ Constructor n $ fmap (\e -> alphaConversion e from to) expr
+alphaConversion (Literal (Constructor n)) _ _ = Literal (Constructor n)
 alphaConversion (Literal l) _ _ = Literal l
 alphaConversion (Lambda n e) from to
   | n == from = Lambda n e
@@ -59,6 +60,16 @@ isWHNF (Lambda {}) = False
 isWHNF (Case {}) = False
 isWHNF (DirectOperation e _) = isWHNF e
 isWHNF (Let _ e) = isWHNF e
+
+getWHNFcase :: (LanguageName w) => ProveExpression w -> Maybe (LiteralTypes w,ProveExpression w -> ProveExpression w)
+getWHNFcase (Variable {}) = Nothing
+-- special case to handle constructors with data types, should find this out dynamically
+-- getWHNFcase (DirectOperation (Literal l) a) = Just (l, id)
+getWHNFcase (Literal l) = Just (l, id)
+getWHNFcase (Lambda v e) = (\(l, f) -> (l, Lambda v . f)) <$> getWHNFcase e
+getWHNFcase (Case {}) = Nothing
+getWHNFcase (DirectOperation e a) = (\(l, f) -> (l, (`DirectOperation` a) . f)) <$> getWHNFcase e
+getWHNFcase (Let a e) = (\(l, f) -> (l, (Let a) . f)) <$> getWHNFcase e
 
 getConstructorsFromName :: (LanguageName l) => l -> Maybe [l]
 getConstructorsFromName n = getConstructorFromType (getType n)

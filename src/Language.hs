@@ -18,6 +18,7 @@ module Language
     getConstructorFromType,
     getProveNameForDatacon,
     getConstructorsFromName,
+    getWHNFcase,
     -- | exported from Translate
     convertBinds,
     convertExpression,

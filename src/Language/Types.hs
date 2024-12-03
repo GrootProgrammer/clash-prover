@@ -1,11 +1,12 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE Haskell2010 #-}
+
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 -- | This module defines data types and instances for representing
 -- Core language constructs and transformations used within GHC.
+
 module Language.Types
   ( NumTypes (..),
     LanguageName (..),
@@ -17,6 +18,8 @@ module Language.Types
     VariableDef (..),
     ProveName (..),
     ProveType (..),
+    StringName (..),
+    StringOnlyName(..),
   )
 where
 
@@ -85,9 +88,35 @@ data (LanguageName n) => LiteralTypes n
   | -- | Bottom (error) literal with a message
     Bottom String
   | -- | Constructor literal
-    Constructor n [ProveExpression n]
-  | Symbolic String
+    Constructor n
+  | Symbolic (SymbolicTree n)
+  | Coercion
+  deriving (Eq)
+
+data PrimType = PrimChar | PrimNumber NumTypes | PrimString | PrimFloat | PrimDouble
   deriving (Show, Eq)
+
+data (LanguageName n) => SymbolicTree n
+  = NodePrim PrimType
+  | Node (LiteralTypes n)
+  | Add (SymbolicTree n) (SymbolicTree n)
+  | Sub (SymbolicTree n) (SymbolicTree n)
+  | Cast PrimType (SymbolicTree n)
+  | Eq (SymbolicTree n) (SymbolicTree n)
+  | Gt (SymbolicTree n) (SymbolicTree n)
+  deriving (Show, Eq)
+
+instance (Show n, LanguageName n) => Show (LiteralTypes n) where
+  show (LChar c) = "LChar " ++ show c
+  show (LNumber numType i) = "LNumber " ++ show numType ++ " " ++ show i
+  show (LString s) = "LString " ++ show s
+  show (LFloat r) = "LFloat " ++ show r
+  show (LDouble r) = "LDouble " ++ show r
+  show (Typed proveType) = "Typed " ++ show proveType
+  show (Bottom _) = "_|_"
+  show (Constructor n) = "Constructor " ++ show n
+  show (Symbolic s) = "Symbolic " ++ show s
+  show Coercion = "Coercion "
 
 -- | Core language expressions, allowing various types of terms, variables, and constructs.
 data (LanguageName l) => ProveExpression l
@@ -142,6 +171,7 @@ instance LanguageName ProveName where
   convert = id
   updateType (PN n) (PT t) = PN $ GP.setVarType n t
   create = undefined
+  getProveName = id
 
 data StringName = SN {_getName :: String, _getType :: ProveType}
   deriving (Show, Eq)
@@ -151,6 +181,16 @@ instance LanguageName StringName where
   getType = _getType
   updateType (SN name _) = SN name
   create = SN
+
+
+newtype StringOnlyName = SON {_getNameSON :: String}
+  deriving (Show, Eq)
+
+instance LanguageName StringOnlyName where
+  getName = _getNameSON
+  getType = undefined
+  updateType i _ = i
+  create s _ = SON s 
 
 type StringOrCoreName = Either ProveName StringName
 
