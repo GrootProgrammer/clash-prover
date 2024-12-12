@@ -36,57 +36,66 @@ common clash-options
 library
     import: clash-options
     exposed-modules:
-      CorePrintPlugin,
-      Properties,
-      CorePrinter,
-      Language.ToGraphviz,
-      Language.Translate,
-      Language.LanguageUtils,
-      Language.Types,
-      Language,
-      Primitives,
-      Rewrite.Deconstruct,
-      Invariants
+      Language.Expression
+      Language.Translate
+      CorePrintPlugin
+      Rewrite.OperationalRewrite
+      Rewrite.Primitives
+      Utils.ToGraphviz
     build-depends:    base,
-                      ghc,
-                      exceptions,
-                      sbv
+                      extra,
+                      containers,
+                      ghc
     hs-source-dirs:   src
     default-language: Haskell2010
 
+library pluginUser
+   import: clash-options
+   other-modules:    
+     TestModule
+   hs-source-dirs:   pluginUser
+   build-depends:   
+     base,
+     my-prover
+   ghc-options: -fexpose-all-unfoldings
+   ghc-options: -fplugin CorePrintPlugin
+   default-language:  Haskell2010
+   ghc-options:       -Wall
+ 
 test-suite hunit-test
-  type:             exitcode-stdio-1.0
-  hs-source-dirs:   test
-  main-is:          hunit.hs
-  other-modules:
-    Tests.Language.LanguageUtils
-  ghc-options:      -threaded
-  build-depends:    base, my-prover, hedgehog
-  default-language: Haskell2010
-
-test-suite doctests
-  type:             exitcode-stdio-1.0
-  hs-source-dirs:   test
-  main-is:          doctests.hs
-  ghc-options:      -threaded
-  build-depends:    base, my-prover, doctest-parallel
-  default-language: Haskell2010
-
--- Builds the executable 'clash', with simple project in scope
-executable clash
-  main-is: clash.hs
-  hs-source-dirs:   bin
-  default-language: Haskell2010
-  Build-Depends: base, clash-ghc, clash-prelude, sbv
-  if !os(Windows)
-    ghc-options: -dynamic
-
--- Builds the executable 'clashi', with simple project in scope
-executable clashi
-  import: clash-options
-  main-is: clashi.hs
-  hs-source-dirs:   bin
-  default-language: Haskell2010
-  if !os(Windows)
-    ghc-options: -dynamic
-  build-depends: base, clash-ghc
+   type:             exitcode-stdio-1.0
+   hs-source-dirs:   test
+   main-is:          hunit.hs
+   other-modules:
+     Tests.Language.Expression
+   ghc-options:      -threaded
+   build-depends:    base, my-prover, HUnit
+   default-language: Haskell2010
+ 
+-- test-suite doctests
+--   type:             exitcode-stdio-1.0
+--   hs-source-dirs:   test
+--   main-is:          doctests.hs
+--   ghc-options:      -threaded
+--   build-depends:    base, my-prover, doctest-parallel
+--   default-language: Haskell2010
+-- 
+-- -- Builds the executable 'clash', with simple project in scope
+-- executable clash
+--   main-is: clash.hs
+--   hs-source-dirs:   bin
+--   default-language: Haskell2010
+--   Build-Depends: base, clash-ghc, clash-prelude, sbv
+--   if !os(Windows)
+--     ghc-options: -dynamic
+-- 
+-- -- Builds the executable 'clashi', with simple project in scope
+-- executable clashi
+--   import: clash-options
+--   main-is: clashi.hs
+--   hs-source-dirs:   bin
+--   default-language: Haskell2010
+--   if !os(Windows)
+--     ghc-options: -dynamic
+--   build-depends: base, clash-ghc
+-- 

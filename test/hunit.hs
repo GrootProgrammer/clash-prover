@@ -1,20 +1,11 @@
 {-# LANGUAGE BlockArguments #-}
+
 module Main where
 
-import           System.IO (BufferMode(..), hSetBuffering, stdout, stderr)
-import qualified Control.Monad
-import qualified System.Exit
-
-import qualified Tests.Language.LanguageUtils
-
+import Test.HUnit
+import qualified Tests.Language.Expression
 
 main :: IO ()
 main = do
-    hSetBuffering stdout LineBuffering
-    hSetBuffering stderr LineBuffering
-
-    _results <- sequence [
-            Tests.Language.LanguageUtils.tests
-        ]
-
-    Control.Monad.unless (and _results) System.Exit.exitFailure
+  counts <- runTestTT Tests.Language.Expression.tests
+  return ()

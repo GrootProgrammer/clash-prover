@@ -99,7 +99,7 @@ primitiveExecute
           Just e ->
             Right $
               rerollStack xs $
-                Case p primName $
+                Case p primName undefined $
                   zipWith
                     ( \alt i ->
                         createIntCI

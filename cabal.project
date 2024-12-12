@@ -1,5 +1,2 @@
-packages: 
-    .
+packages: *.cabal
 with-compiler: ghc-9.8.2
-write-ghc-environment-files: always
-tests: true

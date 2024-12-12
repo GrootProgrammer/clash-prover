@@ -1,104 +1,197 @@
 module Language.Translate
   ( convertBinds,
-    convertExpression,
-    getVariableDef,
-    rerollStack,
-    isPrimitive,
+    convertExpr,
   )
 where
 
+import Data.Type.Coercion (Coercion (Coercion))
+import Debug.Trace (trace, traceShowId)
+import qualified Debug.Trace as GP
+import GHC.Core.TyCo.Rep (Coercion (FunCo))
+import qualified GHC.Core.TyCo.Rep as GT
 import qualified GHC.Plugins as GP
-import Language.LanguageUtils
-import Language.Types
-import Prelude
+import Language.Expression
 
-convertBinds :: (LanguageName l) => [GP.CoreBind] -> ProveLanguage l
-convertBinds = concatMap convertBind
+convertBinds ::
+  (GP.HasCallStack) =>
+  [GP.CoreBind] ->
+  [Binding]
+convertBinds =
+  fmap convertBind
 
-convertBind :: (LanguageName l) => GP.CoreBind -> ProveLanguage l
-convertBind (GP.NonRec _id expr) = [convertIdExpression _id expr]
-convertBind (GP.Rec l) = concatMap (\(_id, expr) -> convertBind (GP.NonRec _id expr)) l
+convertBind ::
+  (GP.HasCallStack) =>
+  GP.CoreBind ->
+  Binding
+convertBind
+  (GP.NonRec _id expr) =
+    trace (GP.showPprUnsafe $ GP.NonRec _id expr) $
+      traceShowId $
+        BindNonRec (convertVar _id) (convertExpr expr)
+convertBind
+  (GP.Rec bind) =
+    BindRec $ map (\(a, b) -> (convertVar a, convertExpr b)) bind
 
-convertIdExpression :: (LanguageName l) => GP.CoreBndr -> GP.CoreExpr -> VariableDef l
-convertIdExpression name expr = Def ((convert . PN) name) (convertExpression expr)
-
-convertExpression :: (LanguageName l) => GP.CoreExpr -> ProveExpression l
-convertExpression (GP.Var info) = Variable ((convert . PN) info)
-convertExpression (GP.Lit lit) = Literal $ convertLiteral lit
-convertExpression (GP.App expr arg) = DirectOperation (convertExpression expr) (convertExpression arg)
-convertExpression (GP.Lam varToBind expression) = Lambda ((convert . PN) varToBind) (convertExpression expression)
-convertExpression (GP.Let (GP.NonRec _id expr) expression) = Let (convertIdExpression _id expr) (convertExpression expression)
-convertExpression (GP.Let (GP.Rec ((_id, expr):xs)) expression) = Let (convertIdExpression _id expr) (convertExpression (GP.Let (GP.Rec xs) expression))
-convertExpression (GP.Let (GP.Rec []) expression) = convertExpression expression
-convertExpression (GP.Case a b _ d) = Case (convertExpression a) ((convert . PN) b) (fmap convertAlt d)
-convertExpression (GP.Cast e _) = convertExpression e
-convertExpression (GP.Tick _ expr) = convertExpression expr
-convertExpression (GP.Coercion c) = Literal Coercion
-convertExpression (GP.Type t) = Literal $ Typed $ PT t
-convertExpression t = error $ "non exhaustive: " ++ GP.showPprUnsafe t
-
-convertAltCon :: (LanguageName l) => GP.AltCon -> CaseMatch l
-convertAltCon GP.DEFAULT = DEFAULT
-convertAltCon (GP.DataAlt d) = Cons $ getProveNameForDatacon d
-convertAltCon (GP.LitAlt l) = CaseLit $ convertLiteral l
-
-convertAlt :: (LanguageName l) => GP.Alt GP.CoreBndr -> CaseInstance l
-convertAlt (GP.Alt con bind expr) = CI (convertAltCon con) (fmap (convert . PN) bind) (convertExpression expr)
-
-convertNumType :: GP.LitNumType -> NumTypes
-convertNumType GP.LitNumBigNat = NLitNumBigNat
-convertNumType GP.LitNumInt = NLitNumInt
-convertNumType GP.LitNumInt8 = NLitNumInt8
-convertNumType GP.LitNumInt16 = NLitNumInt16
-convertNumType GP.LitNumInt32 = NLitNumInt32
-convertNumType GP.LitNumInt64 = NLitNumInt64
-convertNumType GP.LitNumWord = NLitNumWord
-convertNumType GP.LitNumWord8 = NLitNumWord8
-convertNumType GP.LitNumWord16 = NLitNumWord16
-convertNumType GP.LitNumWord32 = NLitNumWord32
-convertNumType GP.LitNumWord64 = NLitNumWord64
-
-convertLiteral :: GP.Literal -> LiteralTypes n
-convertLiteral (GP.LitChar c) =
-  LChar c
-convertLiteral (GP.LitNumber numType v) =
-  LNumber (convertNumType numType) v
-convertLiteral (GP.LitString s) =
-  LString $ show s
-convertLiteral (GP.LitFloat r) =
-  LFloat r
-convertLiteral (GP.LitDouble d) =
-  LDouble d
-convertLiteral _ = error "not supported literal"
-
-isPrimitive :: (LanguageName a) => VariableDef a -> Bool
-isPrimitive (Def n1 (Variable n2)) = n1 == n2
-isPrimitive _ = False
-
--- panics if ProveName is in the current Module
-getExternalVariableDef :: (LanguageName l) => [ProveExpression l] -> l -> VariableDef l
-getExternalVariableDef _ var = case unfolding of
-  GP.NoUnfolding -> Def (convert $ PN _id) (Variable (convert $ PN _id))
-  GP.BootUnfolding -> Def (convert $ PN _id) (Variable (convert $ PN _id))
-  (GP.OtherCon []) -> Def (convert $ PN _id) (Literal (Constructor (convert $ PN _id)))
-  (GP.OtherCon [GP.DataAlt l]) -> Def (convert $ PN _id) (Literal (Constructor (getProveNameForDatacon l)))
-  (GP.OtherCon xs) -> error ("constructor with multiple options: " ++ GP.showPprUnsafe (GP.OtherCon xs))
-  (GP.DFunUnfolding vars c args) -> Def (convert $ PN _id) (lambda_tree $ do_tree base_of_tree)
-    where
-      lambda_tree i = foldl (flip Lambda) i (fmap (convert . PN) vars)
-      do_tree i = foldl DirectOperation i leafs
-      leafs = map convertExpression args
-      base_of_tree = Literal $ Constructor (getProveNameForDatacon c)
-  (GP.CoreUnfolding expr _ _ _ _) -> Def (convert $ PN _id) (convertExpression expr)
+convertVar :: (GP.HasCallStack) => GP.Var -> VarRep
+convertVar _id = VarRepped vName vShortName vType vUnfolding
   where
-    (PN _id) = getProveName var
-    unfolding = GP.realIdUnfolding _id
+    vName = GP.nameStableString (GP.varName _id) ++ "(" ++ show (GP.getUnique _id) ++ ")"
+    vShortName = GP.occNameString $ GP.occName $ GP.varName _id
+    vType = convertType $ GP.varType _id
+    vUnfolding = getUnfolding _id
 
-getVariableDef :: (LanguageName l) => [VariableDef l] -> [ProveExpression l] -> l -> VariableDef l
-getVariableDef (x : xs) context n
-  | defName x == n = x
-  | otherwise = getVariableDef xs context n
-getVariableDef [] context n = getExternalVariableDef context n
+getUnfolding :: (GP.HasCallStack) => GP.Var -> Maybe ExprRep
+getUnfolding _id
+  | GP.isId _id = do
+      input_unfolding <- Just $ GP.realIdUnfolding _id
+      unfolded <- GP.maybeUnfoldingTemplate input_unfolding
+      converted <- Just $ convertExpr unfolded
+      _ <- trace "conversion from:\n" $ Just undefined
+      _ <- trace (GP.showPprUnsafe input_unfolding) $ Just undefined
+      _ <- trace "\nunfolded:\n" $ Just undefined
+      _ <- trace (GP.showPprUnsafe unfolded) $ Just undefined
+      _ <- trace "conversion to:\n" $ Just undefined
+      _ <- trace (show converted) $ Just undefined
+      return $ converted
+  | otherwise = Nothing
 
-rerollStack :: (Foldable t, LanguageName l) => t (ProveExpression l) -> ProveExpression l -> ProveExpression l
-rerollStack xs e = foldl DirectOperation e xs
+ownUnfolding :: GP.Unfolding -> Maybe GP.CoreExpr
+ownUnfolding (GP.CoreUnfolding {GP.uf_tmpl = expr}) = Just expr
+ownUnfolding (GP.DFunUnfolding {GP.df_bndrs = bndrs, GP.df_con = con, GP.df_args = args}) =
+  Just $ GP.mkLams bndrs $ GP.mkApps (GP.mkLams (GP.dataConUnivTyVars con) $ GP.Var (GP.dataConWorkId con)) args
+ownUnfolding _ = Nothing
+
+convertArrow :: GP.FunTyFlag -> TypeFunctionForm
+convertArrow GP.FTF_T_T = TypeToType
+convertArrow GP.FTF_T_C = TypeToCoercion
+convertArrow GP.FTF_C_T = CoercionToType
+convertArrow GP.FTF_C_C = CoercionToCoercion
+
+convertType :: (GP.HasCallStack) => GP.Kind -> TypeRep
+convertType (GT.TyVarTy t) = TypeVariable $ convertVar t
+convertType (GT.TyConApp _id args) =
+  TypeConstructor
+    ( GP.nameStableString $ GP.getName _id,
+      map (convertVar . GP.binderVar) $ GP.tyConBinders _id,
+      map (convertVar . GP.dataConWorkId) $ GP.tyConDataCons _id
+    )
+    (fmap convertType args)
+convertType (GT.ForAllTy b t) = TypeForall (convertVar $ GP.binderVar b) (convertType t)
+convertType (GT.FunTy af _ arg res) = TypeFunction (convertType arg) (convertArrow af) (convertType res)
+convertType (GT.LitTy lit) = TypeLiteral $ convertTypeLit lit
+convertType t@GT.AppTy {} = trace "not yet implemented convertType AppTy for: \n" undefined
+convertType t@GT.CastTy {} = trace "not yet implemented convertType CastTy for: \n" undefined
+convertType t@GT.CoercionTy {} = trace "not yet implemented convertType CastTy for: \n" undefined
+
+convertTypeLit :: (GP.HasCallStack) => GT.TyLit -> LiteralRep
+convertTypeLit (GT.NumTyLit n) = convertLit (GP.LitNumber GP.LitNumInt n)
+convertTypeLit (GT.StrTyLit s) = convertLit (GP.LitString (GP.bytesFS s))
+convertTypeLit (GT.CharTyLit c) = convertLit (GP.LitChar c)
+
+convertCoercion :: (GP.HasCallStack) => GP.Coercion -> CoercionRep
+convertCoercion (GT.Refl t) =
+  CoRefl (convertType t)
+convertCoercion (GT.GRefl _ t GT.MRefl) =
+  CoRefl (convertType t)
+convertCoercion (GT.GRefl _ t (GT.MCo c)) =
+  CoGRefl (convertType t) (convertCoercion c)
+convertCoercion (GT.TyConAppCo {}) = trace "not yet implemented convertCoercion for: TyConAppCo" CoercionUnknown
+convertCoercion (GT.AppCo _ _) = trace "not yet implemented convertCoercion for: AppCo" CoercionUnknown
+convertCoercion (GT.FunCo {GT.fco_arg = arg, GT.fco_res = res}) =
+  CoFun (convertCoercion arg) (convertCoercion res)
+convertCoercion (GT.ForAllCo var arg res) =
+  CoForall (convertVar var) (convertCoercion arg) (convertCoercion res)
+convertCoercion (GT.CoVarCo _) = trace "not yet implemented convertCoercion for: CoVarCo" CoercionUnknown
+convertCoercion (GT.AxiomInstCo _ _ cs) = CoAxiomInst (map convertCoercion cs)
+convertCoercion (GT.AxiomRuleCo _ _) = trace "not yet implemented convertCoercion for: AxiomRuleCo" CoercionUnknown
+convertCoercion (GT.UnivCo {}) = trace "not yet implemented convertCoercion for: UnivCo" CoercionUnknown
+convertCoercion (GT.SymCo c) = CoSym (convertCoercion c)
+convertCoercion (GT.TransCo _ _) = trace "not yet implemented convertCoercion for: TransCo" CoercionUnknown
+convertCoercion (GT.SelCo _ _) = trace "not yet implemented convertCoercion for: SelCo" CoercionUnknown
+convertCoercion (GT.LRCo _ _) = trace "not yet implemented convertCoercion for: LRCo" CoercionUnknown
+convertCoercion (GT.InstCo _ _) = trace "not yet implemented convertCoercion for: InstCo" CoercionUnknown
+convertCoercion (GT.KindCo _) = trace "not yet implemented convertCoercion for: KindCo" CoercionUnknown
+convertCoercion (GT.SubCo _) = trace "not yet implemented convertCoercion for: SubCo" CoercionUnknown
+convertCoercion (GT.HoleCo _) = error "HoleCo should not exist on this level"
+
+convertNumType ::
+  (GP.HasCallStack) =>
+  GP.LitNumType ->
+  NumRep
+convertNumType
+  GP.LitNumBigNat =
+    NLitNumBigNat
+convertNumType
+  GP.LitNumInt =
+    NLitNumInt
+convertNumType
+  GP.LitNumInt8 =
+    NLitNumInt8
+convertNumType
+  GP.LitNumInt16 =
+    NLitNumInt16
+convertNumType
+  GP.LitNumInt32 =
+    NLitNumInt32
+convertNumType
+  GP.LitNumInt64 =
+    NLitNumInt64
+convertNumType
+  GP.LitNumWord =
+    NLitNumWord
+convertNumType
+  GP.LitNumWord8 =
+    NLitNumWord8
+convertNumType
+  GP.LitNumWord16 =
+    NLitNumWord16
+convertNumType
+  GP.LitNumWord32 =
+    NLitNumWord32
+convertNumType
+  GP.LitNumWord64 =
+    NLitNumWord64
+
+convertLit ::
+  (GP.HasCallStack) =>
+  GP.Literal ->
+  LiteralRep
+convertLit
+  (GP.LitChar c) =
+    LChar c
+convertLit
+  (GP.LitNumber numType v) =
+    LNumber (convertNumType numType) v
+convertLit
+  (GP.LitString s) =
+    LString $ drop 1 . init $ show s
+convertLit
+  (GP.LitFloat r) =
+    LFloat r
+convertLit
+  (GP.LitDouble d) =
+    LDouble d
+convertLit
+  _ =
+    error "not supported literal"
+
+convertExpr :: (GP.HasCallStack) => GP.CoreExpr -> ExprRep
+convertExpr (GP.Var v) = ExprVar $ convertVar v
+convertExpr (GP.Lit l) = ExprLit $ convertLit l
+convertExpr (GP.App e a) = ExprApp (convertExpr e) (convertExpr a)
+convertExpr (GP.Lam b e) = ExprLambda (convertVar b) (convertExpr e)
+convertExpr (GP.Let b e) = ExprLet (convertBind b) (convertExpr e)
+convertExpr (GP.Case m b t a) = ExprCase (convertExpr m) (convertVar b) (convertType t) (map convertAlt a)
+convertExpr (GP.Cast e c) = ExprCast (convertExpr e) (convertCoercion c)
+convertExpr (GP.Tick _ e) = convertExpr e
+convertExpr (GP.Type t) = ExprType $ convertType t
+convertExpr (GP.Coercion c) = ExprCoer $ convertCoercion c
+
+convertAlt :: (GP.HasCallStack) => GP.CoreAlt -> ExprAlt
+convertAlt (GP.Alt a b c) =
+  Alt (convertCon a) (fmap convertVar b) (convertExpr c)
+
+convertCon :: (GP.HasCallStack) => GP.AltCon -> ExprCon
+convertCon (GP.DataAlt con) = ExprDataCon $ convertVar $ GP.dataConWrapId con
+convertCon (GP.LitAlt l) = ExprLitCon $ convertLit l
+convertCon GP.DEFAULT = DefaultCon
