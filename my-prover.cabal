@@ -43,6 +43,7 @@ library
       Rewrite.Primitives
       Utils.Graph
       Utils.ToGraphviz
+      Properties
     build-depends:    base,
                       extra,
                       containers,

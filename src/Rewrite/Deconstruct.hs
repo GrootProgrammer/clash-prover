@@ -11,6 +11,9 @@ import Language
 import Prelude
 import Primitives
 
+data Conditional 
+  = LitEqual 
+
 data (LanguageName l) => Conditional l
   = LitEqual (ProveExpression l) (LiteralTypes l)
   | ConstEqual (ProveExpression l) l [l]

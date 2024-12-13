@@ -4,13 +4,14 @@
 module CorePrintPlugin (plugin) where
 
 import Data.Data
-import Data.Maybe (catMaybes, isJust)
+import Data.Maybe (catMaybes)
 import GHC.Plugins
 import Language.Expression
 import Language.Translate (convertBinds, convertExpr)
 import Rewrite.OperationalRewrite (applyOpRules)
 import Utils.ToGraphviz (showNode)
 import Prelude
+import Properties
 
 plugin :: Plugin
 plugin =
@@ -33,26 +34,29 @@ getBindsTuple ((Rec ((b, e) : rs)) : xs) = (b, e) : getBindsTuple (Rec rs : xs)
 getBindsTuple ((Rec []) : xs) = getBindsTuple xs
 getBindsTuple [] = []
 
-hasStringAnn :: ModGuts -> String -> CoreBndr -> CoreExpr -> CoreM (Maybe (String, ExprRep))
+hasStringAnn :: ModGuts -> String -> CoreBndr -> CoreExpr -> CoreM (Maybe (String, ExprRep, AssertList))
 hasStringAnn guts match bind expr = do
-  stringAnns <- (annotationsOn @String) guts bind
-  return if match `elem` stringAnns then Just (nameStableString $ GHC.Plugins.varName bind, convertExpr expr) else Nothing
+  stringAnns <- (annotationsOn @(String, AssertList)) guts bind
+  return $ do
+    total <- lookup match stringAnns
+    Just (nameStableString $ GHC.Plugins.varName bind, convertExpr expr, total)
 
-getAlwaysTrue :: ModGuts -> CoreM [(String, ExprRep)]
+getAlwaysTrue :: ModGuts -> CoreM [(String, ExprRep, AssertList)]
 getAlwaysTrue guts = do
   maybeAlways <- mapM (\(b, e) -> hasStringAnn guts "alwaysTrue" b e) allBinds
+  liftIO $ putStr $ show maybeAlways
   return $ catMaybes maybeAlways
   where
     allBinds = getBindsTuple $ mg_binds guts
 
-solveAlwaysTrue :: String -> ExprRep -> IO ()
-solveAlwaysTrue name expr = do
+solveAlwaysTrue :: (String, ExprRep, AssertList) -> IO ()
+solveAlwaysTrue (name, expr, assumpts) = do
   putStrLn ("solving: " ++ name)
   putStrLn "starting graph:"
   putStr (showNode "" $ getGraph expr)
   putStrLn "ending graph"
-  reworked <- pure $ applyOpRules expr
-  liftIO (maybe (pure ()) (solveAlwaysTrue name) reworked)
+  let reworked = applyOpRules expr
+  liftIO (maybe (pure ()) (\r -> solveAlwaysTrue (name, r, assumpts)) reworked)
   return ()
 
 pass :: ModGuts -> CoreM ModGuts
@@ -61,7 +65,7 @@ pass guts = do
   liftIO $ putStr (showPprUnsafe $ mg_binds guts)
   alwaysTrue <- getAlwaysTrue guts
   --  liftIO $ print $ map fst alwaysTrue
-  liftIO $ mapM_ (uncurry solveAlwaysTrue) alwaysTrue
+  liftIO $ mapM_ solveAlwaysTrue alwaysTrue
   -- liftIO $ putStr $ showNode "" $ getGraph lang
   return guts
   where
