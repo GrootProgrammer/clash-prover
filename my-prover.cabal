@@ -41,6 +41,7 @@ library
       CorePrintPlugin
       Rewrite.OperationalRewrite
       Rewrite.Primitives
+      Utils.Graph
       Utils.ToGraphviz
     build-depends:    base,
                       extra,

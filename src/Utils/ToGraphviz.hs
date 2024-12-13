@@ -1,6 +1,5 @@
 module Utils.ToGraphviz
-  ( GraphvizNode (..),
-    DotAble (..),
+  ( DotAble (..),
     writeNode,
     writeConnection,
     showNode,
@@ -8,8 +7,7 @@ module Utils.ToGraphviz
   )
 where
 
--- | represents a node in the tree for Graphviz
-data GraphvizNode = Node String [(String, GraphvizNode)]
+import Utils.Graph
 
 isPrintable :: Char -> Bool
 isPrintable c = (c `elem` ['a' .. 'z']) || (c `elem` ['A' .. 'Z']) || (c `elem` ['0' .. '9']) || (c `elem` [' ', ':', '(', ')', '[', ']', '.', '"', '\\'])
@@ -20,7 +18,7 @@ getAllowedChars = filter isPrintable
 -- | write s graphviz node, correctly escapes its characters in the label
 writeNode ::
   String ->
-  GraphvizNode ->
+  Graph ->
   String
 writeNode path (Node name _) =
   "\t" ++ getNodeBinding path ++ "[label=\"" ++ name ++ "\"]\n"
@@ -42,16 +40,16 @@ writeConnection from to label =
 -- | Convert a Node to a string in dot notation, prefixes all nodes with the second parameter to prevent naming conflicts
 showNode ::
   String ->
-  GraphvizNode ->
+  Graph ->
   String
 showNode currPath (Node name ((path, child) : xs)) = showNode (currPath ++ "_" ++ path) child ++ writeConnection currPath (currPath ++ "_" ++ path) path ++ showNode currPath (Node name xs)
 showNode currPath (Node name []) = writeNode currPath (Node name [])
 
 class DotAble a where
-  toNode :: a -> GraphvizNode
+  toNode :: a -> Graph
 
-instance DotAble GraphvizNode where
+instance DotAble Graph where
   toNode = id
 
-showTNode :: (Show a) => a -> GraphvizNode
+showTNode :: (Show a) => a -> Graph
 showTNode v = Node (show v) []

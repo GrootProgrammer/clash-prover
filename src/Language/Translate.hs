@@ -1,3 +1,4 @@
+{-# LANGUAGE BlockArguments #-}
 module Language.Translate
   ( convertBinds,
     convertExpr,
@@ -11,6 +12,8 @@ import GHC.Core.TyCo.Rep (Coercion (FunCo))
 import qualified GHC.Core.TyCo.Rep as GT
 import qualified GHC.Plugins as GP
 import Language.Expression
+import GHC.IO (unsafePerformIO)
+import GHC.Conc (threadDelay)
 
 convertBinds ::
   (GP.HasCallStack) =>
@@ -32,6 +35,11 @@ convertBind
   (GP.Rec bind) =
     BindRec $ map (\(a, b) -> (convertVar a, convertExpr b)) bind
 
+{-# NOINLINE unsafeConvertLogger #-}
+unsafeConvertLogger :: String -> Maybe ()
+unsafeConvertLogger msg = seq (unsafePerformIO (appendFile "debug.log" msg))
+   (Just undefined)
+
 convertVar :: (GP.HasCallStack) => GP.Var -> VarRep
 convertVar _id = VarRepped vName vShortName vType vUnfolding
   where
@@ -46,12 +54,12 @@ getUnfolding _id
       input_unfolding <- Just $ GP.realIdUnfolding _id
       unfolded <- GP.maybeUnfoldingTemplate input_unfolding
       converted <- Just $ convertExpr unfolded
-      _ <- trace "conversion from:\n" $ Just undefined
-      _ <- trace (GP.showPprUnsafe input_unfolding) $ Just undefined
-      _ <- trace "\nunfolded:\n" $ Just undefined
-      _ <- trace (GP.showPprUnsafe unfolded) $ Just undefined
-      _ <- trace "conversion to:\n" $ Just undefined
-      _ <- trace (show converted) $ Just undefined
+      _ <- unsafeConvertLogger "conversion from:\n"
+      _ <- unsafeConvertLogger (GP.showPprUnsafe input_unfolding ++ "\n")
+      _ <- unsafeConvertLogger "\nunfolded:\n"
+      _ <- unsafeConvertLogger (GP.showPprUnsafe unfolded ++ "\n")
+      _ <- unsafeConvertLogger "conversion to:\n"
+      _ <- unsafeConvertLogger (GP.showPprUnsafe (getGraph converted) ++ "\n")
       return $ converted
   | otherwise = Nothing
 
@@ -182,7 +190,7 @@ convertExpr (GP.App e a) = ExprApp (convertExpr e) (convertExpr a)
 convertExpr (GP.Lam b e) = ExprLambda (convertVar b) (convertExpr e)
 convertExpr (GP.Let b e) = ExprLet (convertBind b) (convertExpr e)
 convertExpr (GP.Case m b t a) = ExprCase (convertExpr m) (convertVar b) (convertType t) (map convertAlt a)
-convertExpr (GP.Cast e c) = ExprCast (convertExpr e) (convertCoercion c)
+convertExpr (GP.Cast e c) = convertExpr e --ExprCast (convertExpr e) (convertCoercion c)
 convertExpr (GP.Tick _ e) = convertExpr e
 convertExpr (GP.Type t) = ExprType $ convertType t
 convertExpr (GP.Coercion c) = ExprCoer $ convertCoercion c

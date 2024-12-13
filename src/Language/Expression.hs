@@ -10,7 +10,7 @@ import Data.Int
 import Data.Maybe (isJust)
 import qualified Data.Set as DS
 import Data.Word
-import Utils.ToGraphviz (GraphvizNode (Node))
+import Utils.Graph
 
 data NumRep
   = -- | Integer type
@@ -41,10 +41,10 @@ data NumRep
     NLitNumWord64
   deriving (Show, Eq)
 
-listNodes :: [GraphvizNode] -> GraphvizNode
+listNodes :: [Graph] -> Graph
 listNodes = listNodesS "[]"
 
-listNodesS :: String -> [GraphvizNode] -> GraphvizNode
+listNodesS :: String -> [Graph] -> Graph
 listNodesS d xs = Node d $ zipWith (\n (i :: Integer) -> (show i, n)) xs [0 ..]
 
 lookIntoBreak :: DS.Set VarRep -> VarRep -> (DS.Set VarRep -> DS.Set VarRep) -> DS.Set VarRep
@@ -55,7 +55,7 @@ class CoreRep a where
   getBinds :: DS.Set VarRep -> a -> DS.Set VarRep
 
   -- used for logging
-  getGraph :: a -> GraphvizNode
+  getGraph :: a -> Graph
 
 instance (CoreRep a) => CoreRep [a] where
   alphaReduction i from to = fmap (\e -> alphaReduction e from to) i
@@ -143,10 +143,10 @@ instance CoreRep VarRep where
   getGraph x =
     Node
       "VarRep"
-      [ ("name", Node (varName x) []),
+      [ ("name", Node (varName x) [])
         -- ("type", Node (drop 1 $ init $ show $ show $ varType x) []),
         -- ("type", getGraph (varType x)),
-        ("hasUnfolding", Node (show (isJust $ varUnfolding x)) [])
+        -- ("hasUnfolding", Node (show (isJust $ varUnfolding x)) [])
       ]
 
 -- end f VarRep

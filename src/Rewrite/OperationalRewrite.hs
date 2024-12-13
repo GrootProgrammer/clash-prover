@@ -66,7 +66,9 @@ sCase (ExprCase e a b c) = do
 sCase _ = Nothing
 
 getWHNF :: ExprRep -> Maybe (ExprRep, [ExprRep])
-getWHNF (ExprVar v) = Just (ExprVar v, [])
+getWHNF (ExprVar v) 
+  | isPrimitive v = Nothing
+  | otherwise = Just (ExprVar v, [])
 getWHNF (ExprLit l) = Just (ExprLit l, [])
 getWHNF (ExprApp f a) = do
   (childWHNF, args) <- getWHNF f
@@ -85,7 +87,7 @@ sCaseMatch (ExprCase m v _ alt) = do
   let bindVars = drop stackVarsLength args
   let argbinds = zip bindVars binds
   return $
-    foldr (\(a) acc -> ExprApp acc a) (foldr (\(a, b) e -> alphaReduction e b a) (alphaReduction expr v m) argbinds) stackVars
+    foldr (\(a, b) e -> alphaReduction e b a) (alphaReduction expr v m) argbinds
 sCaseMatch _ = Nothing
 
 sPrim :: OperationalRule
