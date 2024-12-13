@@ -1,37 +1,76 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE TypeApplications #-}
+
 module CorePrintPlugin (plugin) where
 
-import Prelude
+import Data.Data
+import Data.Maybe (catMaybes)
 import GHC.Plugins
-import CoreTranslate.Translate
+import Language.Expression
+import Language.Translate (convertBinds, convertExpr)
+import Rewrite.OperationalRewrite (applyOpRules)
+import Utils.ToGraphviz (showNode)
+import Prelude
 import Properties
-import CoreTranslate.Language
-import CoreTranslate.LanguageUtils
-import Execute.Simplify
-import Debug.Trace
 
 plugin :: Plugin
-plugin = defaultPlugin {
-  installCoreToDos = install
-}
-
-getEither :: Either a a -> a
-getEither (Left l) = l
-getEither (Right r) = r
+plugin =
+  defaultPlugin
+    { installCoreToDos = install
+    }
 
 install :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
 install _ todo = return (CoreDoPluginPass "Say name" pass : todo)
 
-printSimplify :: ProveLanguage -> ProveExpression -> IO ()
-printSimplify lang ex = putStr $ show $ iterateUntilLeft (traceWith (\e -> "starting graph:\n" ++ (tographviz (getEither e) `showNode` "") ++ "\nending graph\n") . simplifyStep lang [] []) ex
+-- stolen from https://downloads.haskell.org/ghc/latest/docs/users_guide/extending_ghc.html
+annotationsOn :: (Data a) => ModGuts -> CoreBndr -> CoreM [a]
+annotationsOn guts bndr = do
+  (_, anns) <- getAnnotations deserializeWithData guts
+  return $ lookupWithDefaultUFM_Directly anns [] (varUnique bndr)
+
+getBindsTuple :: [CoreBind] -> [(CoreBndr, CoreExpr)]
+getBindsTuple ((NonRec b e) : xs) = (b, e) : getBindsTuple xs
+getBindsTuple ((Rec ((b, e) : rs)) : xs) = (b, e) : getBindsTuple (Rec rs : xs)
+getBindsTuple ((Rec []) : xs) = getBindsTuple xs
+getBindsTuple [] = []
+
+hasStringAnn :: ModGuts -> String -> CoreBndr -> CoreExpr -> CoreM (Maybe (String, ExprRep, AssertList))
+hasStringAnn guts match bind expr = do
+  stringAnns <- (annotationsOn @(String, AssertList)) guts bind
+  return $ do
+    total <- lookup match stringAnns
+    Just (nameStableString $ GHC.Plugins.varName bind, convertExpr expr, total)
+
+getAlwaysTrue :: ModGuts -> CoreM [(String, ExprRep, AssertList)]
+getAlwaysTrue guts = do
+  maybeAlways <- mapM (\(b, e) -> hasStringAnn guts "alwaysTrue" b e) allBinds
+  liftIO $ putStr $ show maybeAlways
+  return $ catMaybes maybeAlways
+  where
+    allBinds = getBindsTuple $ mg_binds guts
+
+solveAlwaysTrue :: (String, ExprRep, AssertList) -> IO ()
+solveAlwaysTrue (name, expr, assumpts) = do
+  putStrLn ("solving: " ++ name)
+  putStrLn "starting graph:"
+  putStr (showNode "" $ getGraph expr)
+  putStrLn "ending graph"
+  let reworked = applyOpRules expr
+  liftIO (maybe (pure ()) (\r -> solveAlwaysTrue (name, r, assumpts)) reworked)
+  return ()
 
 pass :: ModGuts -> CoreM ModGuts
 pass guts = do
-  liftIO $ print lang
---  mapM_ (liftIO . printSimplify lang . traceWith (\e -> "starting graph:\n" ++ (tographviz e `showNode` "") ++ "\nending graph\n") . defExpr) equivsMealy
-  mapM_ (liftIO . printSimplify lang . traceWith (\e -> "starting graph:\n" ++ (tographviz e `showNode` "") ++ "\nending graph\n") . defExpr) equivs
+  --  liftIO $ print lang
+  liftIO $ putStr (showPprUnsafe $ mg_binds guts)
+  alwaysTrue <- getAlwaysTrue guts
+  --  liftIO $ print $ map fst alwaysTrue
+  liftIO $ mapM_ solveAlwaysTrue alwaysTrue
+  -- liftIO $ putStr $ showNode "" $ getGraph lang
   return guts
-      where
-        equivs = findEquivInLanguage lang
---        equivsMealy = findEquivMealyInLanguage lang
-        lang = convertBinds $ mg_binds guts
+  where
+    -- (_, _, left, right) = firstEquiv
+    -- firstEquiv = head equivs_partition
+    -- equivs_partition = map (extractEquivInfo . defExpr) equivs
+    -- equivs = findEquivInLanguage lang
+    lang = convertBinds $ mg_binds guts

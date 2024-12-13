@@ -60,29 +60,34 @@ render_d3 = """<!DOCTYPE html>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://unpkg.com/@hpcc-js/wasm@2.20.0/dist/graphviz.umd.js"></script>
 <script src="https://unpkg.com/d3-graphviz@5.6.0/build/d3-graphviz.js"></script>
+
+<button type="button" onclick="changeIndex(-1)">Previous</button>
+<button type="button" onclick="changeIndex(1)">Next</button>
+
 <div id="graph" style="text-align: center;"></div>
 <script>
+
+const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
+
+var changeIndex = function(change) {
+    dotIndex = clamp(dotIndex + change, 0, dots.length-1);
+    render();
+}
 
 var dotIndex = 0;
 var graphviz = d3.select("#graph").graphviz()
     .transition(function () {
         return d3.transition("main")
-            .ease(d3.easeLinear)
-            .delay(500)
-            .duration(1500);
+            .ease(d3.easeCubicInOut)
+            .duration(5000);
     })
-    .logEvents(true)
     .on("initEnd", render);
 
 function render() {
     var dotLines = dots[dotIndex];
     var dot = dotLines.join('');
     graphviz
-        .renderDot(dot)
-        .on("end", function () {
-            dotIndex = (dotIndex + 1) % dots.length;
-            render();
-        });
+        .renderDot(dot);
 }
 
 var dots = [

@@ -20,19 +20,7 @@ common clash-options
 
     -- Clash needs access to the source code in compiled modules
     -fexpose-all-unfoldings
-
-    -- Worker wrappers introduce unstable names for functions that might have
-    -- blackboxes attached for them. You can disable this, but be sure to add
-    -- a no-specialize pragma to every function with a blackbox.
     -fno-worker-wrapper
-
-    -- Strict annotations - while sometimes preventing space leaks - trigger
-    -- optimizations Clash can't deal with. See:
-    --
-    --    https://github.com/clash-lang/clash-compiler/issues/2361
-    --
-    -- These flags disables these optimizations. Note that the fields will
-    -- remain strict.
     -fno-unbox-small-strict-fields
     -fno-unbox-strict-fields
   build-depends:
@@ -48,53 +36,68 @@ common clash-options
 library
     import: clash-options
     exposed-modules:
-      CorePrintPlugin, 
-      Properties,
-      Prove.ProveSimpleEquiv,
-      Prove.MealyProver
-    other-modules:  
-      CorePrinter,
-      CoreTranslate.Language,
-      CoreTranslate.LanguageUtils,
-      CoreTranslate.Translate,
-      Execute.Primitives,
-      Execute.Simplify,
-      Prove.ToSmt
+      Language.Expression
+      Language.Translate
+      CorePrintPlugin
+      Rewrite.OperationalRewrite
+      Rewrite.Primitives
+      Utils.Graph
+      Utils.ToGraphviz
+      Properties
     build-depends:    base,
-                      ghc,
-                      exceptions
+                      extra,
+                      containers,
+                      ghc
     hs-source-dirs:   src
     default-language: Haskell2010
 
-
--- Executable section for a test program
-library test
-  import: clash-options
-  other-modules:    
-    TestModule
-  hs-source-dirs:   test
-  build-depends:   
-    base,
-    my-prover
-  ghc-options: -fexpose-all-unfoldings
-  ghc-options: -fplugin CorePrintPlugin
-  default-language:  Haskell2010
-  ghc-options:       -Wall
-
--- Builds the executable 'clash', with simple project in scope
-executable clash
-  main-is: clash.hs
-  hs-source-dirs:   bin
-  default-language: Haskell2010
-  Build-Depends: base, clash-ghc
-  if !os(Windows)
-    ghc-options: -dynamic
-
--- Builds the executable 'clashi', with simple project in scope
-executable clashi
-  main-is: clashi.hs
-  hs-source-dirs:   bin
-  default-language: Haskell2010
-  if !os(Windows)
-    ghc-options: -dynamic
-  build-depends: base, clash-ghc
+library pluginUser
+   import: clash-options
+   other-modules:    
+     TestModule
+   hs-source-dirs:   pluginUser
+   build-depends:   
+     base,
+     my-prover
+   ghc-options: -fexpose-all-unfoldings
+   ghc-options: -fplugin CorePrintPlugin
+   default-language:  Haskell2010
+   ghc-options:       -Wall
+ 
+test-suite hunit-test
+   type:             exitcode-stdio-1.0
+   hs-source-dirs:   test
+   main-is:          hunit.hs
+   other-modules:
+     Tests.Language.Expression
+   ghc-options:      -threaded
+   build-depends:    base, my-prover, HUnit
+   default-language: Haskell2010
+ 
+-- test-suite doctests
+--   type:             exitcode-stdio-1.0
+--   hs-source-dirs:   test
+--   main-is:          doctests.hs
+--   ghc-options:      -threaded
+--   build-depends:    base, my-prover, doctest-parallel
+--   default-language: Haskell2010
+-- 
+-- -- Builds the executable 'clash', with simple project in scope
+-- executable clash
+--   main-is: clash.hs
+--   hs-source-dirs:   bin
+--   default-language: Haskell2010
+--   Build-Depends: base, clash-ghc, clash-prelude, sbv
+--   if !os(Windows)
+--     ghc-options: -dynamic
+-- 
+-- -- Builds the executable 'clashi', with simple project in scope
+-- executable clashi
+--   import: clash-options
+--   main-is: clashi.hs
+--   hs-source-dirs:   bin
+--   default-language: Haskell2010
+--   if !os(Windows)
+--     ghc-options: -dynamic
+--   build-depends: base, clash-ghc
+-- 
