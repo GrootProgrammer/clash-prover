@@ -3,3 +3,4 @@ dist-newstyle
 graph/*
 output.txt
 .ghc.environment.*
+debug.log
